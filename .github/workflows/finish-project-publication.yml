@@ -1,0 +1,165 @@
+name: Finish verified project publication
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/finish-project-publication.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: verified-project-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Recover the previously uploaded, validated project bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import base64, hashlib, io, json, os, pathlib, subprocess, urllib.request, zipfile
+          root = pathlib.Path.cwd()
+          ids = '''69a834d46831a14dbf4b4ff1c238ecdfee236efe
+          b46461bb803685923cfb54ce4e2dd5b4d66d23c4
+          ec34e3fe9bef09470401a1a69a3e417a4c5a0bd5
+          a04d90189bc50f0a793caa2751768fca25082570
+          c07bb904d06081402a6843c9246f4945a8d3ef41
+          2f8f2be2c8ab958ac9a18d044b793965ac4dbf43
+          bb1cd2d0eecb19e4ea893883aa52fd7887cffa25
+          00ce9abd833fb2f8e75811f5dfeb5bc69e0ad889
+          9cfedb65dc5fbbe691138c33d4dd84220555fa12
+          3ccc1349b844712f8f883ce48aa03b16438c22a4
+          18232e1b2fa07f3295e6a40eaf90b3b22e9d6a5f
+          31efc9e88b5a1488535c734f1f7b7850bfa0d158'''.split()
+          def complete_tree(folder):
+              controllers = list(folder.rglob('composition_controller.py'))
+              for controller in controllers:
+                  text = controller.read_text(encoding='utf-8').lower()
+                  if ('occupied' in text or 'occupat' in text) and ('clear' in text or 'libero' in text):
+                      if (folder / 'docs/index.html').is_file() and len(list((folder / 'docs').rglob('*.html'))) >= 14:
+                          return True
+              return False
+          if complete_tree(root):
+              print('Complete check-enabled project already present; no recovery needed.')
+          else:
+              blobs = []
+              for sha in ids:
+                  req = urllib.request.Request(f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/git/blobs/{sha}', headers={'Authorization': 'Bearer '+os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      item = json.load(response)
+                  raw = base64.b64decode(item['content'])
+                  actual = hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+                  if actual != sha:
+                      raise SystemExit('Git blob integrity verification failed.')
+                  blobs.append(raw)
+                  print(sha, len(raw), 'verified bytes')
+              candidates = list(blobs) + [b''.join(blobs)]
+              for raw in list(candidates):
+                  try:
+                      candidates.append(base64.b64decode(b''.join(raw.split()), validate=True))
+                  except Exception:
+                      pass
+              recovered = False
+              for raw in candidates:
+                  if not zipfile.is_zipfile(io.BytesIO(raw)):
+                      continue
+                  with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                      if archive.testzip() is not None:
+                          continue
+                      names = archive.namelist()
+                      if not any(n.endswith('docs/index.html') for n in names):
+                          continue
+                      prefix = next(n[:-len('docs/index.html')] for n in names if n.endswith('docs/index.html'))
+                      files = {}
+                      for entry in archive.infolist():
+                          if entry.is_dir() or not entry.filename.startswith(prefix):
+                              continue
+                          path = pathlib.PurePosixPath(entry.filename[len(prefix):])
+                          if not path.parts or path.is_absolute() or '..' in path.parts:
+                              raise SystemExit('Unsafe archive path.')
+                          if path.parts[0] in {'.git', '.github', '_bootstrap'}:
+                              continue
+                          if any(x in path.parts for x in ('__pycache__', '.venv', 'node_modules', 'raw_conversations')):
+                              continue
+                          if path.name.startswith(('Claude-', '.env')):
+                              raise SystemExit('Private source found in bundle; refusing publication.')
+                          payload = archive.read(entry)
+                          if b'claude.ai/api/organizations/' in payload or b'github_pat_' in payload:
+                              raise SystemExit('Private source found in bundle; refusing publication.')
+                          files[path] = payload
+                      controllers = [v.decode('utf-8').lower() for p,v in files.items() if p.name == 'composition_controller.py']
+                      if not any(('occupied' in t or 'occupat' in t) and ('clear' in t or 'libero' in t) for t in controllers):
+                          continue
+                      if len([p for p in files if str(p).startswith('docs/') and p.suffix == '.html']) < 14:
+                          continue
+                      for path, payload in files.items():
+                          target = root.joinpath(*path.parts)
+                          target.parent.mkdir(parents=True, exist_ok=True)
+                          target.write_bytes(payload)
+                      print('Recovered verified project:', len(files), 'files; archive SHA256:', hashlib.sha256(raw).hexdigest())
+                      recovered = True
+                      break
+              if not recovered:
+                  raise SystemExit('The complete project archive is not recoverable from the currently uploaded blobs. No partial or guessed project was committed.')
+          if not complete_tree(root):
+              raise SystemExit('Check-enabled project validation failed.')
+      - name: Validate website references
+        shell: python
+        run: |
+          from pathlib import Path
+          from html.parser import HTMLParser
+          from urllib.parse import urlsplit, unquote
+          errors = []
+          class Check(HTMLParser):
+              def __init__(self, page):
+                  super().__init__()
+                  self.page = page
+              def handle_starttag(self, tag, pairs):
+                  attrs = dict(pairs)
+                  for key in ('src','href'):
+                      url = attrs.get(key,'')
+                      parsed = urlsplit(url)
+                      if parsed.scheme or parsed.netloc or not parsed.path or parsed.path.startswith('/'):
+                          continue
+                      if not (self.page.parent / unquote(parsed.path)).resolve().exists():
+                          errors.append(str(self.page)+': '+url)
+          pages = sorted(Path('docs').rglob('*.html'))
+          for page in pages:
+              Check(page).feed(page.read_text(encoding='utf-8'))
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          print(len(pages), 'HTML pages: local file references verified.')
+      - name: Commit recovered project without overwriting concurrent changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all -- ':!_bootstrap' ':!.github'
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: publish verified source, report, diagrams and supplied project figures'
+            git push origin HEAD:main
+          fi
+      - name: Preserve navigable website artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-meccano-website
+          path: docs/
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
