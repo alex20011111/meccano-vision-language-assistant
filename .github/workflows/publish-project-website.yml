@@ -1,0 +1,71 @@
+name: Publish project website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/publish-project-website.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: project-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Read repository
+        uses: actions/checkout@v4
+      - name: Check website files
+        shell: python
+        run: |
+          from pathlib import Path
+          from html.parser import HTMLParser
+          from urllib.parse import urlsplit, unquote
+          root = Path('docs').resolve()
+          if not (root / 'index.html').is_file():
+              raise SystemExit('Missing docs/index.html: import the verified project bundle first.')
+          failures = []
+          class Links(HTMLParser):
+              def __init__(self, page):
+                  super().__init__()
+                  self.page = page
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  for key in ('href', 'src'):
+                      value = attrs.get(key, '')
+                      parsed = urlsplit(value)
+                      if not value or parsed.scheme or parsed.netloc or not parsed.path:
+                          continue
+                      if parsed.path.startswith('/'):
+                          continue
+                      target = (self.page.parent / unquote(parsed.path)).resolve()
+                      if not target.exists():
+                          failures.append(f'{self.page}: {value}')
+          pages = sorted(root.rglob('*.html'))
+          for page in pages:
+              Links(page).feed(page.read_text(encoding='utf-8'))
+          if failures:
+              raise SystemExit('Broken local references:\n' + '\n'.join(failures))
+          print(f'Validated {len(pages)} HTML pages and their local references.')
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload static website
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
