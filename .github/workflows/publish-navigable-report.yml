@@ -1,0 +1,92 @@
+name: Pubblica la relazione navigabile
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-navigable-report.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Leggi il ramo della relazione
+        uses: actions/checkout@v4
+        with:
+          ref: docs/navigable-project-report
+          fetch-depth: 0
+      - name: Recupera le figure originali già versionate
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess, hashlib, json
+          names = ['08_riepilogo.png','01_loss_train.png','02_loss_val.png','03_loss_confronto.png','04_precision_recall.png','05_map.png','06_f1.png','07_learning_rate.png','matrice_confusione_conteggi.png','matrice_confusione_normalizzata.png','map_per_classe.png']
+          out = Path('report/assets/training'); out.mkdir(parents=True, exist_ok=True)
+          paths = subprocess.check_output(['git','ls-tree','-r','--name-only','origin/main'], text=True).splitlines()
+          manifest = []
+          for name in names:
+              target = out / name
+              if not target.is_file():
+                  matches = sorted([p for p in paths if p.rsplit('/',1)[-1] == name and not p.startswith('_bootstrap/')], key=len)
+                  if matches:
+                      target.write_bytes(subprocess.check_output(['git','show','origin/main:' + matches[0]]))
+              if target.is_file():
+                  data = target.read_bytes()
+                  if not data.startswith(b'\x89PNG\r\n\x1a\n'): raise SystemExit('Invalid original image: ' + name)
+                  manifest.append({'name':name,'sha256':hashlib.sha256(data).hexdigest()})
+              else:
+                  print('::warning::Figura originale da integrare: ' + name)
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
+          assert Path('report/index.html').is_file(), 'HTML non disponibile sul ramo della relazione'
+          print('Figure presenti:',len(manifest),'/ 11')
+      - name: Controlla il documento
+        shell: python
+        run: |
+          from pathlib import Path
+          from html.parser import HTMLParser
+          import re, subprocess
+          text = Path('report/index.html').read_text(encoding='utf-8')
+          class Check(HTMLParser):
+              def __init__(self): super().__init__(); self.ids=[]; self.anchors=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if a.get('id'): self.ids.append(a['id'])
+                  if tag=='a' and a.get('href','').startswith('#'): self.anchors.append(a['href'][1:])
+          p=Check(); p.feed(text)
+          assert len(p.ids)==len(set(p.ids)), 'ID duplicati'
+          assert set(p.anchors)<=set(p.ids), 'Ancore interrotte'
+          Path('/tmp/report.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',text,re.S)),encoding='utf-8')
+          subprocess.run(['node','--check','/tmp/report.js'],check=True)
+      - name: Conserva una copia navigabile come artefatto
+        uses: actions/upload-artifact@v4
+        with:
+          name: relazione-navigabile
+          path: report
+      - name: Configura Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: report
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - name: Pubblica
+        id: pages
+        uses: actions/deploy-pages@v4
