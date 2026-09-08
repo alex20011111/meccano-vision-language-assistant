@@ -1,0 +1,71 @@
+name: Import reviewable project report
+on:
+  push:
+    branches: ['docs/navigable-project-report']
+    paths: ['_report_bundle/READY.json']
+permissions:
+  contents: write
+concurrency:
+  group: report-import
+  cancel-in-progress: false
+jobs:
+  import:
+    if: github.ref == 'refs/heads/docs/navigable-project-report'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify and unpack the report bundle
+        shell: python
+        run: |
+          import hashlib, io, json, pathlib, re, tarfile
+          root = pathlib.Path.cwd()
+          manifest = json.loads((root / '_report_bundle/READY.json').read_text())
+          names = manifest['chunks']
+          if not names or any(not re.fullmatch(r'part-\d{3}\.bin', name) for name in names):
+              raise SystemExit('Invalid chunk list')
+          raw = b''.join((root / '_report_bundle' / name).read_bytes() for name in names)
+          if hashlib.sha256(raw).hexdigest() != manifest['sha256']:
+              raise SystemExit('Bundle checksum mismatch')
+          seen = set()
+          with tarfile.open(fileobj=io.BytesIO(raw), mode='r:xz') as archive:
+              for entry in archive.getmembers():
+                  path = pathlib.PurePosixPath(entry.name)
+                  if (not entry.isfile() or path.is_absolute() or '..' in path.parts
+                      or not path.parts or path.parts[0] in {'.git', '.github', '_bootstrap', '_report_bundle'}
+                      or entry.name in seen or entry.size > 10000000):
+                      raise SystemExit('Disallowed entry: ' + entry.name)
+                  data = archive.extractfile(entry).read()
+                  if hashlib.sha256(data).hexdigest() != manifest['files'].get(entry.name):
+                      raise SystemExit('File checksum mismatch: ' + entry.name)
+                  target = root.joinpath(*path.parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(data)
+                  seen.add(entry.name)
+          if seen != set(manifest['files']):
+              raise SystemExit('Incomplete bundle')
+          (root / 'evidence/IMPORT_BUNDLE.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          print('Verified project files:', len(seen))
+      - name: Install offline test dependencies
+        run: python -m pip install numpy opencv-python-headless pillow requests markdown-it-py==4.0.0
+      - name: Run software tests and check static website
+        run: |
+          python -m unittest discover -s tests -v
+          python tools/check_docs.py
+      - name: Commit verified files to the review branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -rf _report_bundle
+          git add --all -- ':!.github' ':!_bootstrap'
+          git commit -m 'feat: publish navigable technical report, figures and tested runtime variant'
+          git push origin HEAD:docs/navigable-project-report
+      - name: Package navigable website
+        uses: actions/upload-artifact@v4
+        with:
+          name: meccano-navigable-project-report
+          path: docs/
+          if-no-files-found: error
