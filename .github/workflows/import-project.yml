@@ -1,0 +1,52 @@
+name: Import verified project bundle
+on:
+  push:
+    branches: [main]
+    paths: ['_bootstrap/READY.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: project-import
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and unpack project files
+        shell: python
+        run: |
+          import base64, hashlib, io, json, pathlib, zipfile
+          root = pathlib.Path.cwd()
+          manifest = json.loads((root / '_bootstrap/READY.json').read_text())
+          chunks = [root / '_bootstrap' / name for name in manifest['chunks']]
+          raw = base64.b64decode(''.join(p.read_text().strip() for p in chunks), validate=True)
+          if hashlib.sha256(raw).hexdigest() != manifest['sha256']:
+              raise SystemExit('Bundle checksum mismatch')
+          with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+              for entry in archive.infolist():
+                  path = pathlib.PurePosixPath(entry.filename)
+                  if path.is_absolute() or '..' in path.parts or path.parts[0] in {'.git', '.github', '_bootstrap'}:
+                      raise SystemExit('Disallowed bundle path: ' + entry.filename)
+                  if entry.is_dir():
+                      continue
+                  target = root.joinpath(*path.parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(archive.read(entry))
+          print('Verified bundle imported:', manifest['sha256'])
+      - name: Commit source, report, diagrams and supplied figures
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all -- ':!_bootstrap' ':!.github'
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: publish documented Meccano assistant and navigable technical website'
+            git push origin HEAD:main
+          fi
+      - name: Upload website preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: meccano-project-website
+          path: docs/
+          if-no-files-found: error
