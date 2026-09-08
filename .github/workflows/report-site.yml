@@ -1,0 +1,113 @@
+name: Relazione web - verifica e pubblicazione
+
+on:
+  push:
+    branches: [main, docs/navigable-project-report]
+    paths:
+      - 'report/**'
+      - '.github/workflows/report-site.yml'
+  pull_request:
+    paths:
+      - 'report/**'
+      - '.github/workflows/report-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: report-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepara le figure originali disponibili nel repository
+        shell: python
+        run: |
+          from pathlib import Path
+          import hashlib, json, subprocess
+          names = ['08_riepilogo.png','01_loss_train.png','02_loss_val.png','03_loss_confronto.png','04_precision_recall.png','05_map.png','06_f1.png','07_learning_rate.png','matrice_confusione_conteggi.png','matrice_confusione_normalizzata.png','map_per_classe.png']
+          target = Path('report/assets/training')
+          target.mkdir(parents=True, exist_ok=True)
+          candidates = subprocess.check_output(['git','ls-tree','-r','--name-only','origin/main'], text=True).splitlines()
+          missing = []
+          manifest = []
+          for name in names:
+              out = target / name
+              if not out.is_file():
+                  matches = [p for p in candidates if p.rsplit('/',1)[-1] == name and not p.startswith('_bootstrap/')]
+                  if matches:
+                      path = sorted(matches, key=len)[0]
+                      out.write_bytes(subprocess.check_output(['git','show','origin/main:' + path]))
+              if not out.is_file():
+                  missing.append(name)
+                  continue
+              data = out.read_bytes()
+              if not data.startswith(b'\x89PNG\r\n\x1a\n'):
+                  raise SystemExit('File non PNG: ' + name)
+              manifest.append({'name': name, 'sha256': hashlib.sha256(data).hexdigest(), 'provenance':'Figura originale fornita dall’autore, non ridisegnata.'})
+          (target / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+          print('Figure originali disponibili:', len(manifest), '/', len(names))
+          if missing:
+              print('::warning::Figure ancora da integrare: ' + ', '.join(missing))
+      - name: Controlla HTML, ancore e sintassi JavaScript
+        shell: python
+        run: |
+          from pathlib import Path
+          from html.parser import HTMLParser
+          import re, subprocess
+          root = Path('report')
+          page = (root / 'index.html').read_text(encoding='utf-8')
+          class Check(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.ids=[]; self.anchors=[]
+              def handle_starttag(self, tag, attrs):
+                  a = dict(attrs)
+                  if a.get('id'): self.ids.append(a['id'])
+                  if tag == 'a' and a.get('href','').startswith('#'):
+                      self.anchors.append(a['href'][1:])
+          p = Check(); p.feed(page)
+          assert len(p.ids) == len(set(p.ids)), 'ID HTML duplicati'
+          assert set(p.anchors) <= set(p.ids), 'Ancore interne interrotte'
+          assert '<html lang="it">' in page
+          assert 'A090' in page and 'A823' in page
+          js = '\n'.join(re.findall(r'<script>(.*?)</script>', page, re.S))
+          Path('/tmp/report-site.js').write_text(js, encoding='utf-8')
+          subprocess.run(['node','--check','/tmp/report-site.js'], check=True)
+          print('OK: ancore, ID univoci, lingua e sintassi JS')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relazione-web
+          path: report
+      - name: Configura GitHub Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+      - name: Prepara artefatto Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: report
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: check
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pubblica il sito
+        id: deployment
+        uses: actions/deploy-pages@v4
