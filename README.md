@@ -8,7 +8,7 @@ Il sistema combina una camera RGB-D RealSense, YOLO, ByteTrack, uno stabilizzato
 
 ## Dal primo modello al fine-tuning
 
-**Il primo `best.pt` è stato ottenuto con un addestramento basato su 150 fotografie, che ho etichettato manualmente su Roboflow.** Questa è la fase iniziale del riconoscimento dei componenti, precedente alla generazione del dataset sintetico. Roboflow è stato utilizzato per l’annotazione delle immagini: non identifico la piattaforma di annotazione con l’ambiente in cui è stato eseguito il training.
+**Il primo `best.pt` è stato ottenuto con un addestramento basato su 150 fotografie, che ho etichettato manualmente su Roboflow.** Questa è la fase iniziale del riconoscimento dei componenti, precedente alla generazione del dataset sintetico. Ho usato Roboflow per l’annotazione delle immagini.
 
 Da quel modello sono partito per integrare il tracking e la stabilizzazione. In seguito ho utilizzato i CAD per generare scene sintetiche, preparato le annotazioni in formato YOLO e proseguito l’addestramento dai pesi esistenti. Distinguo quindi il **primo addestramento sulle 150 fotografie** dal **successivo fine-tuning sui dati sintetici**. I grafici della relazione riguardano la fase successiva e non misurano retroattivamente le prestazioni del primo modello.
 
@@ -27,6 +27,21 @@ Camera RGB-D → YOLO → ByteTrack → stabilizzazione della classe
 
 Ho separato la percezione dall’interpretazione linguistica. Il modello linguistico interpreta la descrizione del pezzo usando il catalogo; la selezione delle istanze e la costruzione della risposta di posizione rimangono in Python. La voce lavora in un processo locale separato dal ciclo video.
 
+## Sorgenti e avvio
+
+Il ramo `main` contiene **15 moduli Python e 6 file di test**. Ho tenuto le spiegazioni nella documentazione, separandole dai sorgenti del programma.
+
+[Indice dei file, delle classi e delle funzioni](docs/SORGENTI.md) · [Programma principale](meccano_tracker.py) · [Test offline](tests/)
+
+Dalla radice del repository, con pesi, silhouette e configurazione del tracker disponibili localmente:
+
+```bash
+python -m pip install -r requirements.txt
+python meccano_tracker.py --model "percorso/best.pt" --silhouettes "percorso/silhouettes" --tracker "percorso/meccano_bytetrack.yaml" --no-voice
+```
+
+Per attivare anche la voce, installare `requirements_voice.txt`, predisporre il modello locale configurato e rimuovere `--no-voice`. Gli strumenti per CAD, rendering e preparazione del dataset richiedono ambienti e librerie propri, descritti nella documentazione.
+
 ## Comandi del banco
 
 | Comando | Funzione |
@@ -44,11 +59,12 @@ La raccolta dati sperimentale non fa parte del funzionamento corrente.
 
 ## Documentazione
 
-- [UML e codice: percorso sequenziale, classi, chiamate e sorgenti](docs/UML_E_CODICE.md)
+- [UML e codice: percorso sequenziale, classi e chiamate](docs/UML_E_CODICE.md)
+- [Sorgenti pubblicati: indice delle implementazioni e riferimenti di riga](docs/SORGENTI.md)
 - [Scelte progettuali e versione di riferimento](docs/DECISIONS.md)
 - [Consultazione della relazione HTML](RELAZIONE_WEB.md)
 
-Nella sezione UML seguo i dati dalla preparazione offline alla chiusura del programma. Per ogni modulo descrivo responsabilità, ingressi, uscite e collegamenti con gli altri componenti. I riferimenti di riga riguardano le copie dei sorgenti identificate nell’appendice tecnica; non presuppongono che tutti i file del banco siano presenti nel ramo principale.
+Nella sezione UML seguo i dati dalla preparazione offline alla chiusura del programma. Per ogni modulo descrivo responsabilità, ingressi, uscite e collegamenti con gli altri componenti. L’indice dei sorgenti riporta la numerazione dei file pubblicati su `main`. Gli intervalli nell’appendice HTML precedente restano riferiti alla copia di lettura identificata nell’appendice stessa.
 
 ## Classi e risultati
 
