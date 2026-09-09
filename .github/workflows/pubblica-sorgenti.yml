@@ -1,0 +1,120 @@
+name: Pubblica sorgenti Python
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/pubblica-sorgenti.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: meccano-python-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+      - name: Recupera e verifica i sorgenti
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import base64, hashlib, io, json, lzma, os, pathlib, tokenize, urllib.request
+          root = pathlib.Path.cwd()
+          shas = [
+              '2703243bbb52c3b2426323d6afd570f029bf4643',
+              'ad6d3c036c60cd56087c9d99a19089ae979ef39c',
+              '37e483ee3d3a917007409d0cac46c143744a2be5',
+              'fdfb103e560606418a7ef57dcee9c204ed1aee62',
+              'adfea6583a376c7d0d0a83613128327708ca6235',
+              '22c78ae7da0de5e7281f0d5e663a40c2dffcd9c2',
+          ]
+          chunks = []
+          for sha in shas:
+              request = urllib.request.Request(
+                  f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/git/blobs/{sha}',
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                           'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  blob = json.load(response)
+              if blob.get('encoding') != 'base64':
+                  raise SystemExit('Codifica blob inattesa')
+              raw = base64.b64decode(''.join(blob['content'].split()), validate=True)
+              actual = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+              if actual != sha:
+                  raise SystemExit('Integrita blob non valida: ' + sha)
+              chunks.append(raw)
+          bundle = b''.join(chunks)
+          if len(bundle) != 60004 or hashlib.sha256(bundle).hexdigest() != 'd5dd7fdfb310472a7408340fb66a0000c035ecb590f812d9eb48d35bf4ebbd3f':
+              raise SystemExit('Integrita pacchetto non valida')
+          payload = lzma.decompress(bundle, memlimit=268435456)
+          if len(payload) != 277336:
+              raise SystemExit('Dimensione pacchetto inattesa')
+          data = json.loads(payload)
+          allowed = set('''assembly_guide_cad.py composition_controller.py composition_ui.py
+          crea_mappa.py genera_dataset_meccano.py generate_silhouettes.py meccano_tracker.py
+          orient_and_generate.py part_orientation.py parts_catalog.py prepara_addestramento.py
+          prova_colori.py rotate_silhouette.py voice_assistant.py voice_runtime.py
+          tests/test_composition.py tests/test_main_integration.py tests/test_new_controls.py
+          tests/test_new_workflow.py tests/test_right_area_fix.py tests/test_voice_stop.py
+          requirements.txt requirements_voice.txt requirements_dev.txt docs/SORGENTI.md'''.split())
+          if set(data['files']) != allowed or set(data['sha256']) != allowed:
+              raise SystemExit('Elenco dei file inatteso')
+          for name, text in data['files'].items():
+              raw = text.encode('utf-8')
+              if hashlib.sha256(raw).hexdigest() != data['sha256'][name]:
+                  raise SystemExit('Integrita sorgente non valida: ' + name)
+              path = pathlib.PurePosixPath(name)
+              if path.is_absolute() or '..' in path.parts:
+                  raise SystemExit('Percorso non valido')
+              if name.endswith('.py'):
+                  compile(text, name, 'exec')
+                  comments = [t for t in tokenize.generate_tokens(io.StringIO(text).readline)
+                              if t.type == tokenize.COMMENT]
+                  if comments:
+                      raise SystemExit('Commenti Python residui: ' + name)
+              target = root.joinpath(*path.parts)
+              if target.is_symlink() or any(parent.is_symlink() for parent in target.parents):
+                  raise SystemExit('Percorso simbolico non consentito: ' + name)
+              if target.is_file() and target.read_bytes() != raw:
+                  raise SystemExit('File preesistente diverso: ' + name + '; nessuna sovrascrittura automatica')
+          for name, text in data['files'].items():
+              target = root / name
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(text.encode('utf-8'))
+          paths = pathlib.Path(os.environ['RUNNER_TEMP']) / 'meccano-source-paths.json'
+          paths.write_text(json.dumps(sorted(allowed)), encoding='utf-8')
+          print('Verificati 25 file, inclusi 21 sorgenti Python senza commenti.')
+      - name: Installa dipendenze dei test
+        run: python -m pip install -r requirements_dev.txt requests
+      - name: Esegui test offline
+        run: python -m pytest -q
+      - name: Carica i file nel ramo principale
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess
+          paths = json.loads((pathlib.Path(os.environ['RUNNER_TEMP']) / 'meccano-source-paths.json').read_text())
+          def git(*args):
+              return subprocess.run(['git', *args], check=True, text=True, capture_output=True).stdout.strip()
+          git('config', 'user.name', 'github-actions[bot]')
+          git('config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
+          git('add', '--', *paths)
+          changed = subprocess.run(['git', 'diff', '--cached', '--quiet']).returncode
+          if changed not in (0, 1):
+              raise SystemExit('Impossibile verificare il diff')
+          if changed:
+              git('commit', '-m', 'Pubblica moduli Python senza commenti e indice dei sorgenti')
+              git('push', 'origin', 'HEAD:main')
+          commit = git('rev-parse', 'HEAD')
+          print('Commit dei sorgenti:', commit)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## Sorgenti pubblicati\n\n')
+              summary.write(f'Commit: `{commit}`\n\n21 file Python verificati; test offline superati.\n')
