@@ -1,0 +1,6 @@
+# Usa preferibilmente le versioni dell'ambiente gia' funzionante del progetto.
+numpy
+opencv-python
+ultralytics
+pyrealsense2
+requests
