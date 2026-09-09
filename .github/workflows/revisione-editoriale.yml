@@ -1,0 +1,133 @@
+name: Revisione della documentazione
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/revisione-editoriale.yml']
+permissions:
+  contents: write
+concurrency:
+  group: revisione-documentazione
+  cancel-in-progress: false
+jobs:
+  revise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Allinea i testi e conserva i diagrammi
+        shell: python
+        run: |
+          import hashlib, html, pathlib, re, subprocess
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True)
+          branch = 'docs/navigable-project-report'
+          main_docs = {p: git('show', 'origin/main:' + p) for p in (
+              'README.md', 'RELAZIONE_WEB.md', 'docs/DECISIONS.md',
+              'docs/UML_E_CODICE.md', 'docs/ADDESTRAMENTO.md')}
+          git('checkout', branch)
+          path = pathlib.Path('report/index.html')
+          original = path.read_text(encoding='utf-8')
+          expected = '65c6fbef0a18859ae962d5ce07783a3510860f1a'
+          if git('hash-object', str(path)).strip() != expected:
+              raise SystemExit('La pagina e cambiata: revisione interrotta senza sovrascriverla.')
+          s = original
+          replacements = {
+              'Vedere i pezzi.<br>Capire la richiesta.<br><span>Guidare la composizione.</span>': 'Meccano<br><span>Vision–Language Assistant</span>',
+              'Un assistente visivo e vocale per un piano di lavoro Meccano: riconoscimento RGB-D, identità temporali dei pezzi, sagome da CAD e interrogazione in linguaggio naturale.': 'Durante il tirocinio ho sviluppato un assistente visivo e vocale per riconoscere i componenti Meccano, seguirli sul piano di lavoro e guidare la composizione con sagome CAD e richieste in linguaggio naturale.',
+              'Il progetto collega una percezione specializzata a una rappresentazione strutturata della scena.': 'Ho collegato una percezione specializzata a una rappresentazione strutturata della scena.',
+              'Separare i compiti: YOLO riconosce,': 'Ho separato i compiti: YOLO riconosce,',
+              'Perimetro ricostruito dal progetto formativo e dai sorgenti allegati. La relazione descrive il lavoro disponibile, non tutte le competenze elencate nel piano di tirocinio come se fossero già implementate.': 'Ho distinto il lavoro implementato dagli obiettivi più ampi del progetto formativo. ROS2 e attuazione robotica restano sviluppi possibili, non risultati del prototipo.',
+              'Una sequenza di problemi concreti, non un elenco di librerie. La cronologia è ricostruita dagli export di sviluppo; non sostituisce un registro ufficiale delle ore di tirocinio.': 'Ho organizzato il lavoro attorno ai problemi emersi sul banco. In questa cronologia ripercorro il primo modello, la stabilizzazione, la guida geometrica e il successivo ampliamento dei dati.',
+              'L’instabilità delle predizioni motiva l’associazione temporale, il voto sulla classe e il recupero dopo brevi sparizioni. Identità e classe diventano due informazioni distinte.': 'Dopo il primo addestramento ho affrontato le variazioni delle predizioni tra fotogrammi. Ho integrato associazione temporale, voto della classe e recupero dopo brevi sparizioni, mantenendo distinte identità e classe.',
+              'Le richieste colloquiali richiedono un catalogo. Il solo prompt non impedisce risposte fuori insieme: la risoluzione del codice e la validazione diventano passaggi espliciti.': 'Per interpretare le richieste colloquiali ho introdotto il catalogo dei componenti. Ho reso esplicite la risoluzione del codice e la sua validazione, senza affidarmi al solo prompt.',
+              'Una figura fatta soltanto di centri non esprime ingombro e rotazione. I CAD forniscono contorni utilizzabili come bersagli e la profondità consente di scalarli nell’immagine.': 'Ho sostituito i bersagli definiti soltanto dal centro con le silhouette dei CAD. In questo modo rappresento ingombro e orientamento e uso la profondità per scalare le sagome nell’immagine.',
+              'Rendering di pezzi in plastica, pose e illuminazione variabili, annotazioni automatiche e augmentation ampliano il materiale per il detector. La coerenza delle classi resta un vincolo comune a CAD, dataset e modello.': 'Dopo le fotografie annotate a mano ho ampliato i dati con rendering di pezzi in plastica, pose e illuminazione variabili, annotazioni automatiche e augmentation. Ho mantenuto la corrispondenza delle classi fra CAD, dataset e modello.',
+              'La raccolta dati sperimentale delle versioni storiche non fa parte del runtime semplificato richiesto.': 'Ho escluso dal runtime corrente la raccolta dati sperimentale delle versioni precedenti.',
+              'Questo elenco interpreta la tassonomia storica del modello con le correzioni dell’autore.': 'In questo elenco distinguo i componenti fisici dai refusi che ho introdotto nelle etichette.',
+              'Output riportato dall’autore nella discussione di preparazione.': 'Quantità che ho registrato nel log di preparazione del dataset sintetico.',
+              'Stesso output; non un conteggio ripetuto sui file in questa pagina.': 'Quantità registrata nello stesso log di preparazione.',
+              'I grafici sono quelli forniti dall’autore. Non sono stati ridisegnati con dati inventati né trasformati in una nuova validazione del modello.': 'Conservo i grafici del fine-tuning successivo e ne discuto separatamente le metriche. Il primo best.pt era stato ottenuto sulle 150 fotografie annotate manualmente su Roboflow: questi grafici non ne descrivono le prestazioni.',
+              'La richiesta più recente in chat è la rigenerazione a ogni pressione, senza vincolo del piano destro.': 'Ho mantenuto il controllo del piano destro: G richiede il piano libero e non sostituisce una composizione già attiva.',
+              'Cambiare disposizione nella revisione che espone questo comando.': 'Richiedere una nuova disposizione della composizione.',
+              'La politica di occupazione dipende dalla revisione consolidata.': 'Il cambio è consentito soltanto quando il piano destro risulta libero.',
+              'Le diverse revisioni hanno politiche differenti sul controllo del piano destro; la scelta va': 'Il controllo del piano destro resta attivo; la scelta va',
+              'Non è riportato un conteggio unico di test ereditato dalle risposte precedenti: ogni numero deve essere legato a una revisione e a un log di esecuzione realmente disponibile.': 'Associo ogni risultato dei test alla versione del codice e al relativo log. Il numero delle funzioni test non coincide con l’esito di una nuova esecuzione.',
+              'Per spiegare il contesto fisico servono immagini reali e riferite alla versione attuale. I tre elementi seguenti sono richieste di materiale, non fotografie mancanti mascherate da risultati.': 'Nella relazione completa ho incluso la fotografia della camera e le schermate del programma. Per completare la documentazione del montaggio fisico resta utile una vista d’insieme del banco con supporto e RealSense.',
+              'Orizzonte visibile nei grafici forniti; non una durata di progetto.': 'Epoche mostrate nei grafici del fine-tuning successivo.',
+              'osservazione dai materiali': 'osservazione',
+              'dai sorgenti allegati': 'dai sorgenti di riferimento',
+              'sorgenti allegati': 'sorgenti di riferimento',
+              'file allegati': 'file del progetto',
+              'materiali forniti': 'materiali del progetto',
+              'grafici forniti': 'grafici del run',
+              'conversazioni di sviluppo': 'appunti di sviluppo',
+              'conversazioni tecniche': 'appunti tecnici',
+              'export di sviluppo': 'appunti di sviluppo',
+              'confermate dall’autore': 'confermate durante lo sviluppo',
+              'confermato dall’autore': 'confermato durante lo sviluppo',
+          }
+          for old, new in replacements.items():
+              s = s.replace(old, new)
+          s = re.sub(r'<div class="callout warning"><strong>Le conversazioni non sono una prova di esecuzione</strong>.*?</div>',
+              '<div class="callout warning"><strong>Distinguo implementazione e valutazione</strong>Ho separato le scelte applicate dalle alternative considerate. Un esempio di comando o un test software non sostituisce una misura sperimentale del funzionamento sul banco.</div>', s, flags=re.S)
+          s = re.sub(r'<div class="callout warning"><strong>Requisito da allineare con la revisione di main</strong>.*?</div>',
+              '<div class="callout"><strong>Versione di riferimento</strong>Ho mantenuto il controllo del piano destro attivo. G avvia una composizione con i prerequisiti rispettati; N richiede un cambio solo con il piano libero. Dopo X o al completamento, se rimangono pezzi nella zona di montaggio, compare l’avviso RIPORTARE I PEZZI NEL PIANO DI PARTENZA. Il tracking continua durante tutte le fasi.</div>', s, flags=re.S)
+          initial = ('<h3 id="primo-modello">Il primo best.pt: 150 fotografie annotate a mano</h3>'
+              '<p>Ho ottenuto il primo <code>best.pt</code> con un addestramento basato su '
+              '<strong>150 fotografie, che ho etichettato manualmente su Roboflow</strong>. '
+              'Questa fase precede la generazione sintetica dai CAD. Roboflow è stato utilizzato per l’annotazione: '
+              'non identifico questa attività con l’esecuzione del training sul suo servizio cloud.</p>'
+              '<p>Ho usato quel modello nella prima integrazione del tracking. In seguito ho generato i dati sintetici '
+              'e proseguito l’addestramento dai pesi esistenti. Le 150 fotografie non sono il numero di immagini per classe '
+              'né il numero di epoche. Non attribuisco al primo run lo split o le metriche della fase successiva.</p>'
+              '<p><a href="../docs/ADDESTRAMENTO.md">Storia del modello e preparazione dei dati</a></p>')
+          marker = '<h3>La tassonomia corretta</h3>'
+          if s.count(marker) != 1:
+              raise SystemExit('Sezione dataset non univoca')
+          s = s.replace(marker, initial + marker, 1)
+          s = s.replace('<div class="timeline">', '<div class="timeline"><article><div class="when">Punto di partenza · Dataset fotografico</div><h3>Il primo modello</h3><p>Ho annotato manualmente 150 fotografie su Roboflow e le ho utilizzate per il primo addestramento. Il best.pt ottenuto è stato il punto di partenza del riconoscimento e del tracking, prima del successivo fine-tuning sui render.</p></article>', 1)
+          # Keep source examples, styles, scripts and SVG geometry intact in this pass.
+          protected = {}
+          def stash(match):
+              key = '\x00BLOCK' + str(len(protected)) + '\x00'
+              protected[key] = match.group(0)
+              return key
+          s = re.sub(r'<(script|style|pre|svg)\b[^>]*>.*?</\1>', stash, s, flags=re.S|re.I)
+          s = s.replace('dall’autore', 'nei miei appunti').replace("dall'autore", 'nei miei appunti')
+          s = s.replace('dell’autore', 'del progetto').replace("dell'autore", 'del progetto')
+          s = s.replace('conversazioni', 'appunti di sviluppo').replace('conversazione', 'documentazione di sviluppo')
+          s = s.replace('un altro assistente', 'una prova preliminare').replace('risposte precedenti', 'revisioni precedenti')
+          s = s.replace('allegati', 'archivio del progetto')
+          for key, value in protected.items():
+              s = s.replace(key, value)
+          assert s.count('<svg') == original.count('<svg')
+          assert '150 fotografie' in s and 'Roboflow' in s
+          assert 'G richiede il piano libero' in s
+          assert 'Requisito da allineare con la revisione di main' not in s
+          path.write_text(s, encoding='utf-8')
+          for name, text in main_docs.items():
+              p = pathlib.Path(name)
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(text, encoding='utf-8')
+          pathlib.Path('report/README.md').write_text('''# Relazione web
+
+          Ho organizzato la relazione per seguire il lavoro dal primo modello al sistema di assistenza visiva e vocale. Il primo best.pt deriva da un addestramento su **150 fotografie annotate manualmente su Roboflow**; il dataset sintetico e il fine-tuning appartengono a una fase successiva.
+
+          La pagina è `index.html`. La posso aprire localmente con un browser; GitHub mostra invece il sorgente. La copia HTML autonoma completa comprende anche l’appendice UML e codice e le figure incorporate.
+
+          Ho mantenuto il controllo del piano destro attivo. G non rigenera una composizione già in corso; N richiede il piano libero. A090 e A823 sono refusi, A132 è il codice corretto, A622 e A632 sono distinti.
+
+          [UML e codice](../docs/UML_E_CODICE.md) · [Addestramento](../docs/ADDESTRAMENTO.md) · [Scelte progettuali](../docs/DECISIONS.md)
+          '''.replace('\n          ', '\n'), encoding='utf-8')
+          print('Pagina aggiornata; diagrammi conservati:', s.count('<svg'))
+          print('SHA256 HTML:', hashlib.sha256(s.encode()).hexdigest())
+      - name: Registra la revisione
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md RELAZIONE_WEB.md docs/DECISIONS.md docs/UML_E_CODICE.md docs/ADDESTRAMENTO.md report/index.html report/README.md
+          git diff --cached --check
+          git commit -m 'docs: rivede la relazione e documenta il primo modello da 150 fotografie'
+          git push origin HEAD:docs/navigable-project-report
