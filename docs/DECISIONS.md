@@ -1,32 +1,41 @@
-# Decisioni consolidate del progetto
+# Scelte progettuali
 
-Questo documento distingue le decisioni confermate dall'autore dalle proposte presenti nelle conversazioni di sviluppo. Il codice e la relazione devono seguire questa versione dei requisiti.
+In queste note raccolgo le scelte che ho mantenuto nel prototipo e distinguo il funzionamento corrente dalle alternative considerate durante lo sviluppo.
 
-## D01 — Il controllo del piano destro resta attivo
+## D01 — Controllo del piano di montaggio
 
-L'autore ha confermato che l'ultimo aggiornamento del controllo di occupazione, precedente alla richiesta di rimozione, funzionava. La successiva richiesta di eliminare il controllo è quindi superata. La baseline operativa è il pacchetto `meccano_fix_piano_destro` fornito nella conversazione.
+Ho mantenuto il controllo di occupazione del piano destro nella versione `meccano_fix_piano_destro`. Avvio e cambio composizione rispettano questo controllo; G non rigenera una figura già attiva.
 
-Il controllo del piano destro è distinto dalla verifica dei singoli piazzamenti sulle silhouette. Avvio e cambio composizione devono rispettare il controllo di occupazione implementato nella baseline; non si documenta G come rigenerazione incondizionata.
+Il controllo del piano è distinto dalla verifica del singolo piazzamento sulla silhouette. La presenza di un pezzo fuori dalle sagome può impedire una nuova generazione senza corrispondere a uno slot completato. I rilevamenti utilizzati per il controllo devono essere coerenti con i filtri di plausibilità e con la diagnostica mostrata a schermo.
 
-## D02 — Tracking e voce
+## D02 — Tracking continuo e arresto della voce
 
-Il tracking resta visibile durante tutte le fasi. Stop voce interrompe il processo vocale locale senza fermare il ciclo video e senza azzerare gli ID. X conclude/azzera la composizione, non il tracking. Il messaggio di rientro dei pezzi è: **RIPORTARE I PEZZI NEL PIANO DI PARTENZA**.
+Ho mantenuto i riquadri del tracking durante tutte le fasi. Stop voce interrompe il processo vocale locale senza chiudere la camera o azzerare gli ID. X conclude e azzera la composizione, non il tracking.
 
-## D03 — Tassonomia
+Se rimangono pezzi nella zona di montaggio dopo X o al completamento, l’avviso scritto e vocale è **RIPORTARE I PEZZI NEL PIANO DI PARTENZA**. L’arresto della voce non deve cancellare l’informazione visiva sullo stato del piano.
 
-- A090 e A823 sono refusi di etichettatura, non pezzi fisici. Non richiedono STL o silhouette e non costituiscono classi reali da valutare.
-- A132 è il codice confermato dall'autore.
-- A622 e A632 sono pezzi distinti; non devono essere unificati o rinominati automaticamente.
-- Hand è una classe ausiliaria, non un pezzo da inserire nella composizione.
+## D03 — Codici fisici e indici del modello
 
-Conservare l'ordine degli indici nei checkpoint e nelle annotazioni esistenti. Non cancellare due nomi dal mezzo di una lista senza una migrazione coerente di etichette e modello.
+A090 e A823 sono errori introdotti durante l’etichettatura: non rappresentano pezzi reali e non richiedono STL o silhouette. A132 è il codice corretto del perno; A622 e A632 sono pezzi distinti. Hand è una classe ausiliaria, esclusa dall’inventario della composizione.
 
-## D04 — Perimetro della relazione
+Tengo separata questa tassonomia dall’ordine numerico delle classi in un checkpoint. Non elimino nomi intermedi senza una migrazione coerente delle annotazioni e della configurazione. Dove il codice di riferimento non applica ancora tutti i vincoli del catalogo, lo segnalo nella lettura dei sorgenti.
 
-Il prototipo integra visione RGB-D, YOLO, ByteTrack, stabilizzazione temporale, geometria CAD e interazione vocale con LLM locale. Nei sorgenti forniti non è documentata l'attuazione di un robot, una pipeline ROS/ROS2 o un VLM che riceva direttamente immagini. Questi temi appartengono al contesto formativo o agli sviluppi futuri, non ai risultati implementati.
+## D04 — Perimetro del prototipo
 
-## D05 — Provenienza delle evidenze
+Ho integrato percezione RGB-D, YOLO, ByteTrack, stabilizzazione temporale, geometria CAD e interazione vocale con un LLM locale. Il modello linguistico interpreta la richiesta; non calcola coordinate e non controlla attuatori.
 
-Le schermate caricate dall'autore sono evidenze visive del prototipo; una schermata con TRIAL e cronometro documenta una versione storica. La raccolta dati sperimentale rimane esclusa dal runtime attuale. Gli export integrali delle conversazioni non vengono pubblicati.
+Il prototipo non comprende un braccio robotico, nodi ROS/ROS2 o un VLM con ingresso diretto delle immagini. Questi aspetti appartengono al contesto formativo e agli sviluppi possibili, non alle funzioni implementate.
 
-I grafici di addestramento restano inalterati. Il grafico AP per classe presenta incongruenze rispetto alla tassonomia e alla matrice di confusione: va verificato sugli output numerici originali e non è una graduatoria certificata.
+## D05 — Documentazione delle prove
+
+Ho mantenuto le schermate del prototipo e i grafici di addestramento come materiali distinti. La schermata con TRIAL e cronometro documenta una versione precedente; la raccolta dati sperimentale non è attiva nel runtime di riferimento.
+
+Le curve del detector non misurano la continuità degli ID, la qualità della risposta vocale o il beneficio per l’operatore. Il grafico AP per classe richiede inoltre una verifica sugli output numerici originali, perché presenta incongruenze con la tassonomia e le matrici di confusione. Non lo uso come graduatoria delle prestazioni dei componenti.
+
+## D06 — Origine del primo best.pt
+
+Il primo modello è stato addestrato su **150 fotografie annotate manualmente su Roboflow**. Ho usato quel `best.pt` nella fase iniziale di riconoscimento e integrazione del tracking; successivamente ho proseguito l’addestramento sui dati sintetici preparati dai CAD.
+
+Distinguo la preparazione manuale delle fotografie dalla generazione automatica dei render. Non attribuisco al primo run lo split, le epoche o le metriche del fine-tuning successivo. [Percorso di addestramento](ADDESTRAMENTO.md).
+
+[Pagina principale](../README.md) · [UML e codice](UML_E_CODICE.md)
