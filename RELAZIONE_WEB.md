@@ -1,29 +1,37 @@
-# Relazione web del progetto
+# Relazione del progetto
 
-La relazione HTML è sviluppata nel ramo [`docs/navigable-project-report`](https://github.com/alex20011111/meccano-vision-language-assistant/tree/docs/navigable-project-report/report), senza sovrascrivere le modifiche al runtime in corso su `main`.
+Ho organizzato la relazione per seguire il percorso di lavoro: primo dataset fotografico, riconoscimento e tracking, guida con silhouette, interazione vocale, dati sintetici e valutazione. Per ogni parte descrivo il problema affrontato, le scelte di implementazione e i limiti rimasti.
 
 ## Consultazione
 
-- [Sorgente della pagina HTML](https://github.com/alex20011111/meccano-vision-language-assistant/blob/docs/navigable-project-report/report/index.html)
-- [Confronto e revisione delle modifiche](https://github.com/alex20011111/meccano-vision-language-assistant/compare/main...docs/navigable-project-report)
-- [Workflow di pubblicazione](https://github.com/alex20011111/meccano-vision-language-assistant/actions/workflows/publish-navigable-report.yml)
+Il sorgente della pagina web è nel ramo [`docs/navigable-project-report`, cartella `report`](https://github.com/alex20011111/meccano-vision-language-assistant/tree/docs/navigable-project-report/report).
 
-Il workflow prepara il sito da `report/`, controlla ancore e sintassi JavaScript, raccoglie le figure originali disponibili e tenta la pubblicazione con GitHub Pages. **L'esistenza dei sorgenti non equivale a un deploy riuscito:** consultare l'esito del workflow. Se l'attivazione automatica di Pages non è consentita al token del workflow, il proprietario deve abilitare GitHub Pages con sorgente GitHub Actions nelle impostazioni del repository.
+GitHub mostra il codice di un file HTML, non necessariamente la pagina impaginata. Per la consultazione locale scarico quel ramo, estraggo lo ZIP e apro `report/index.html` con un browser. La copia HTML autonoma della relazione completa incorpora anche la sezione UML e codice e le figure: si apre direttamente, senza avviare camera, modello o Python.
+
+GitHub Pages è una modalità distinta di pubblicazione. La presenza dei sorgenti e dei workflow non indica da sola che il sito pubblico sia attivo.
 
 ## Percorso di lettura
 
-La pagina copre problema e obiettivi, evoluzione delle scelte, pipeline offline e online, componenti, viste UML, tracking, geometria CAD, voce, dataset, moduli, lettura degli undici grafici, guida operativa, riproducibilità, limiti, materiale fotografico e glossario.
+**Contesto → dati iniziali → pipeline → moduli → UML e codice → risultati → riproducibilità → limiti.**
 
-Navigazione con indice, ricerca, filtri, ingrandimento delle figure, tema chiaro/scuro e stampa. I diagrammi sono SVG incorporati, senza dipendenza da un servizio esterno per il rendering.
+Nel primo passaggio descrivo l’addestramento del primo `best.pt` su **150 fotografie annotate manualmente in Roboflow**. Distinguo questa fase dalla generazione di scene con BlenderProc e dal successivo fine-tuning. Non uso i grafici di quest’ultimo per attribuire prestazioni al modello iniziale.
 
-## Tassonomia e interpretazione dei risultati
+La [guida UML e codice](docs/UML_E_CODICE.md) collega le fasi ai nomi reali di classi, funzioni e metodi. Nell’appendice interattiva seguo le chiamate, apro le implementazioni e consulto i listati numerati. I diagrammi affiancano la spiegazione, senza sostituirla.
 
-A090 e A823 sono refusi di etichettatura, non pezzi fisici. A132 è confermato; A622 e A632 sono distinti; Hand è ausiliaria. Le PNG di addestramento rimangono inalterate. Il grafico AP per classe viene segnalato come da verificare, non usato come graduatoria certificata. Le metriche del detector non vengono presentate come prestazioni del tracking, della voce o di uno studio HRI.
+## Materiale visivo
 
-## Materiale ancora richiesto
+La documentazione completa comprende la fotografia della camera, le schermate del piano e della composizione e gli undici grafici del detector. La foto del dispositivo non mostra il montaggio della RealSense sul banco. La schermata con TRIAL e cronometro appartiene a una versione precedente.
 
-Foto reale del banco e della RealSense, schermata della composizione attuale e schermata della verifica con tracking visibile. Per una verifica numerica dei risultati servono anche gli output originali del run e dell'esportazione per classe. Gli export integrali delle conversazioni non vengono pubblicati.
+Conservo separatamente l’analisi delle loss, precision/recall, mAP, F1 e matrici di confusione. Segnalo le incongruenze del grafico AP per classe e non ricavo metriche precise da immagini quando mancano i dati numerici.
 
-## Requisito operativo da allineare
+## Versione di riferimento
 
-La richiesta visibile nella conversazione prescrive G libero a ogni pressione senza controllo del piano destro. Il documento `docs/DECISIONS.md` su main descrive una politica differente. Il contributo di documentazione non decide silenziosamente questa divergenza e non riscrive il runtime.
+Ho mantenuto il **controllo del piano destro attivo**. G avvia la composizione solo quando i prerequisiti sono rispettati e non sostituisce una figura già attiva; N richiede un cambio quando il piano è libero. Tracking e verifica dei piazzamenti continuano durante il lavoro. Stop voce interrompe l’audio senza azzerare gli ID.
+
+A090 e A823 sono refusi di etichettatura, non pezzi fisici. A132 è il codice corretto; A622 e A632 sono distinti; Hand è una classe ausiliaria.
+
+## Riproducibilità
+
+I listati commentati si riferiscono alle copie identificate nell’appendice tecnica. Pesi, dataset, CAD e configurazione del banco rimangono risorse separate. Tengo distinti i test software, le prove con l’hardware e la valutazione sperimentale dell’interazione.
+
+[Pagina principale](README.md) · [Addestramento](docs/ADDESTRAMENTO.md) · [Scelte progettuali](docs/DECISIONS.md)
