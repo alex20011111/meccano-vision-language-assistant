@@ -1,0 +1,172 @@
+name: Publish English project edition
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/english-edition.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install build and test dependencies
+        run: python -m pip install beautifulsoup4 lxml numpy opencv-python-headless requests
+      - name: Restore verified English sources and build the report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import base64, hashlib, io, json, lzma, os, pathlib, shutil, subprocess, tarfile, urllib.request
+          root = pathlib.Path.cwd()
+          work = pathlib.Path(os.environ['RUNNER_TEMP']) / 'english-edition'
+          work.mkdir(parents=True, exist_ok=True)
+          shas = '''37b9f99f5c7b393e5c2c9de1c43a4bef1f5ba1f0
+          e8d7ae79047aa1d3bb9dd24c6cd58ac1c97d3c41
+          0580e3162495c174d9cc8f52689981c06f79c1ce
+          328df36f706a5a386bd298ed5d5da0821850aff7
+          48ffa945fb6d4a08171f07b445b631e4f59fcde5
+          2a7628459e9553d1b18fdbdb6b43164d1d0203ee
+          fed77db55cb49e2a08cae98c9afede4828c0dc0b
+          3fa342461d7ed17d950cd1b53a7aad5d2438e9fc
+          8f186a0fde7aa47295a243c2571fcf26be9c7218
+          d93f491616de462e0146889128c0a081ea067e85
+          c98ff17c2ce6c7c055a2cfc2f98382d738c67238
+          2af2dd48c255e8fb56c40f8f0f67c1a178a67ba8'''.split()
+          blocks = []
+          for sha in shas:
+              request = urllib.request.Request(f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/git/blobs/{sha}', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      item = json.load(response)
+              except urllib.error.HTTPError:
+                  if sha != shas[-1]:
+                      raise
+                  print('Final archive block is unavailable; checking complete verified entries.')
+                  break
+              data = base64.b64decode(item['content'])
+              actual = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+              if actual != sha:
+                  raise SystemExit('Git blob integrity mismatch: ' + sha)
+              blocks.append(data)
+          packed = b''.join(blocks)
+          if len(blocks) == len(shas):
+              if hashlib.sha256(packed).hexdigest() != '10f2d4185ee3680991f7d78002130f72a71d175496755f67a2cf7f92d42888a5':
+                  raise SystemExit('Archive integrity mismatch')
+              unpacked = lzma.decompress(packed)
+          else:
+              unpacked = lzma.LZMADecompressor().decompress(packed)
+          archive = tarfile.open(fileobj=io.BytesIO(unpacked), mode='r:')
+          extracted = []
+          try:
+              for member in archive:
+                  if not member.isfile():
+                      continue
+                  name = pathlib.PurePosixPath(member.name)
+                  if name.is_absolute() or '..' in name.parts:
+                      raise SystemExit('Invalid archive path')
+                  try:
+                      data = archive.extractfile(member).read()
+                  except tarfile.ReadError:
+                      break
+                  if len(data) != member.size:
+                      break
+                  target = work.joinpath(*name.parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(data)
+                  extracted.append(str(name))
+          except tarfile.ReadError:
+              pass
+          print('Complete verified entries:', len(extracted))
+          print('\n'.join(extracted))
+          original = root / 'Meccano Guida.html'
+          if not original.is_file():
+              raise SystemExit('Original complete report is missing')
+          raw = original.read_bytes()
+          if hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() != '4c86b91457ecc473b639b4a0c538f53e19c24fcb':
+              raise SystemExit('The original report has changed; stopping instead of overwriting it')
+          source = work / 'source_report.html'
+          source.write_bytes(raw)
+          updates = work / 'updates'
+          build = work / 'build'
+          required = ['prepare.py', 'build_reference.py', 'build_html.py', 'fix_html_tail.py']
+          for name in required:
+              if not (build / name).is_file():
+                  raise SystemExit('Required build file missing: ' + name)
+          if not (updates / 'tests/test_english_language.py').is_file():
+              raise SystemExit('English-language regression tests are missing')
+          for path in updates.rglob('*'):
+              if not path.is_file():
+                  continue
+              rel = path.relative_to(updates)
+              destination = root / rel
+              if destination.is_file() and rel.suffix == '.py':
+                  baseline = subprocess.run(['git', 'show', '64acc97cde5f41d7b7d039b89ddaa47eb79b078e:' + rel.as_posix()], capture_output=True)
+                  if baseline.returncode == 0 and baseline.stdout != destination.read_bytes():
+                      raise SystemExit('Concurrent source changes detected: ' + str(rel))
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(path, destination)
+          link = build / 'repo'
+          if link.exists():
+              if link.is_symlink():
+                  link.unlink()
+              else:
+                  shutil.rmtree(link)
+          link.symlink_to(root, target_is_directory=True)
+          env = dict(os.environ, MECCANO_WORK=str(build), MECCANO_SOURCE_HTML=str(source))
+          for name in required:
+              subprocess.run(['python', str(build / name)], env=env, check=True)
+          report = build / 'Meccano_Report_English.html'
+          if not report.is_file():
+              report = root / 'report/index.html'
+          if not report.is_file():
+              raise SystemExit('The complete English report was not built')
+          data = report.read_bytes()
+          if hashlib.sha256(data).hexdigest() != '51eaa4a34dffd8c02e1135b325ea620daf9cddce6e32b8cd46d22b93a1042965':
+              raise SystemExit('The report differs from the locally tested English edition')
+          (root / 'report').mkdir(exist_ok=True)
+          (root / 'report/index.html').write_bytes(data)
+          (root / 'Meccano_Report.html').write_bytes(data)
+          original.write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=report/index.html"><title>Meccano project report</title><p><a href="report/index.html">Open the English project report</a></p></html>\n', encoding='utf-8')
+          obsolete = ['.github/workflows/finish-project-publication.yml', '.github/workflows/import-project.yml', '.github/workflows/pubblica-sorgenti.yml', '.github/workflows/publish-navigable-report.yml', '.github/workflows/publish-project-website.yml', '.github/workflows/revisione-editoriale.yml', '.github/workflows/allinea-note-relazione.yml']
+          for name in obsolete:
+              (root / name).unlink(missing_ok=True)
+          if (root / '_bootstrap').exists():
+              shutil.rmtree(root / '_bootstrap')
+          (root / '.github/workflows/english-edition.yml').unlink(missing_ok=True)
+          subprocess.run(['python', '-m', 'compileall', '-q', '.'], check=True)
+          subprocess.run(['python', '-m', 'unittest', 'discover', '-s', 'tests', '-v'], check=True)
+          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
+          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          subprocess.run(['git', 'add', '-A'], check=True)
+          subprocess.run(['git', 'commit', '-m', 'Translate documentation, interactive report and runtime interface into English'], check=True)
+          subprocess.run(['git', 'push', 'origin', 'HEAD:main'], check=True)
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          print('ENGLISH_MAIN_COMMIT=' + commit)
+          subprocess.run(['git', 'fetch', 'origin', 'docs/navigable-project-report'], check=True)
+          branchdir = work / 'documentation-branch'
+          subprocess.run(['git', 'worktree', 'add', str(branchdir), '-b', 'english-report-sync', 'origin/docs/navigable-project-report'], check=True)
+          for name in subprocess.check_output(['git', 'ls-files'], text=True).splitlines():
+              rel = pathlib.PurePosixPath(name)
+              if rel.parts[0] in {'.github', '_bootstrap'}:
+                  continue
+              src = root / name
+              if src.is_file():
+                  dst = branchdir / name
+                  dst.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(src, dst)
+          for name in obsolete + ['.github/workflows/import-report.yml', '.github/workflows/report-site.yml']:
+              (branchdir / name).unlink(missing_ok=True)
+          if (branchdir / '_bootstrap').exists():
+              shutil.rmtree(branchdir / '_bootstrap')
+          subprocess.run(['git', '-C', str(branchdir), 'add', '-A'], check=True)
+          if subprocess.run(['git', '-C', str(branchdir), 'diff', '--cached', '--quiet']).returncode:
+              subprocess.run(['git', '-C', str(branchdir), 'commit', '-m', 'Update the complete project report and documentation to English'], check=True)
+              subprocess.run(['git', '-C', str(branchdir), 'push', 'origin', 'HEAD:docs/navigable-project-report'], check=True)
+          print('ENGLISH_REPORT_COMMIT=' + subprocess.check_output(['git', '-C', str(branchdir), 'rev-parse', 'HEAD'], text=True).strip())
