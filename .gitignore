@@ -16,7 +16,7 @@ venv/
 *.stp
 silhouettes/*.png
 silhouettes/silhouettes_meta.json
-mappa_classi.json
+class_map.json
 dataset_*/
 runs/
 outputs/
