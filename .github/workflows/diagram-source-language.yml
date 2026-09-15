@@ -1,0 +1,87 @@
+name: Translate sequence diagram source labels
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagram-source-language.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install document parser
+        run: python -m pip install beautifulsoup4
+      - name: Translate textual diagram sources on both branches
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess
+          from bs4 import BeautifulSoup
+          root = pathlib.Path.cwd()
+          page = root / 'report/index.html'
+          original = page.read_bytes()
+          soup = BeautifulSoup(original.decode('utf-8'), 'html.parser')
+          diagrams = json.loads(soup.find(id='uc-diagrams').string)
+          replacements = {
+              'frame RGB-D': 'RGB-D frame',
+              'align + filtri depth': 'align + depth filters',
+              'raw copiati; bbox con ID': 'raw snapshot; boxes with IDs',
+              'classe stabile + lock': 'stable class + lock',
+              'depth / angolo / SceneState': 'depth / angle / SceneState',
+              'azioni G/N/V/X': 'actions G/N/V/X',
+              'sagome': 'silhouettes',
+              'coda azioni': 'action queue',
+              'spawn se serve; invio job': 'spawn if needed; send job',
+              'Whisper → ascolto → trascrizione': 'Whisper → recording → transcription',
+              'classi presenti': 'present classes',
+              'solo se parsing diretto fallisce: prompt': 'prompt only if direct parsing fails',
+              'codice ammesso oppure nessuno': 'allowed code or no match',
+              'nuova richiesta scene(job)': 'new scene(job) request',
+              'snapshot() corrente': 'current snapshot()',
+              'posizioni aggiornate': 'updated positions',
+              'filtra classe → frase → speak': 'filter class → sentence → speak',
+              'controlli cooperativi': 'cooperative cancellation checks',
+              'se ancora vivo: terminate / kill': 'if still alive: terminate / kill',
+              'uscita e raccolta risorse': 'exit and resource cleanup',
+              'stato IDLE; camera invariata': 'IDLE state; camera unchanged'
+          }
+          edited = 0
+          for diagram in diagrams:
+              before = diagram.get('source', '')
+              text = before
+              for old, new in replacements.items():
+                  text = text.replace(old, new)
+              if text != before:
+                  diagram['source'] = text
+                  edited += 1
+          if edited != 3:
+              raise SystemExit('Unexpected sequence-source revision; no files written.')
+          soup.find(id='uc-diagrams').string = json.dumps(diagrams, ensure_ascii=False).replace('</', '<\\/')
+          result = str(soup).encode('utf-8')
+          for name in ('report/index.html', 'Meccano_Report_English.html'):
+              (root / name).write_bytes(result)
+          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
+          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          (root / '.github/workflows/diagram-source-language.yml').unlink()
+          subprocess.run(['git', 'add', '-A'], check=True)
+          subprocess.run(['git', 'commit', '-m', 'Translate all sequence diagram source labels into English'], check=True)
+          subprocess.run(['git', 'push', 'origin', 'HEAD:main'], check=True)
+          print('MAIN_COMMIT=' + subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
+          subprocess.run(['git', 'fetch', 'origin', 'docs/navigable-project-report'], check=True)
+          previous = subprocess.check_output(['git', 'show', 'origin/docs/navigable-project-report:report/index.html'])
+          if previous != original:
+              raise SystemExit('Documentation branch changed independently; no overwrite performed.')
+          other = pathlib.Path(os.environ['RUNNER_TEMP']) / 'diagram-source-sync'
+          subprocess.run(['git', 'worktree', 'add', '--detach', str(other), 'origin/docs/navigable-project-report'], check=True)
+          for name in ('report/index.html', 'Meccano_Report_English.html'):
+              (other / name).write_bytes(result)
+          subprocess.run(['git', '-C', str(other), 'add', 'report/index.html', 'Meccano_Report_English.html'], check=True)
+          subprocess.run(['git', '-C', str(other), 'commit', '-m', 'Translate sequence diagram source labels into English'], check=True)
+          subprocess.run(['git', '-C', str(other), 'push', 'origin', 'HEAD:docs/navigable-project-report'], check=True)
+          print('REPORT_COMMIT=' + subprocess.check_output(['git', '-C', str(other), 'rev-parse', 'HEAD'], text=True).strip())
