@@ -12,7 +12,7 @@ OLLAMA_URL   = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "llama3.1:8b"                                                      
 
 WHISPER_MODEL_SIZE = "base"
-WHISPER_LANGUAGE   = "it"
+WHISPER_LANGUAGE   = "en"
 
 RECORD_SECONDS = 5
 SAMPLE_RATE    = 16000
@@ -78,83 +78,64 @@ def describe_position(world_xyz):
 
 
     if abs(x_cm) < 2:
-        x_part = "circa al centro orizzontalmente"
+        x_part = 'approximately centred horizontally'
     else:
-        side = "a destra" if x_cm > 0 else "a sinistra"
-        x_part = f"a {_cm_to_words(x_cm)} centimetri {side}"
+        side = 'to the right' if x_cm > 0 else 'to the left'
+        x_part = f"{_cm_to_words(x_cm)} centimetres {side}"
 
 
     if abs(y_cm) < 2:
-        y_part = "circa al centro verticalmente"
+        y_part = 'approximately centred vertically'
     else:
-        vert = "in basso" if y_cm > 0 else "in alto"
-        y_part = f"{_cm_to_words(y_cm)} centimetri {vert}"
+        vert = 'near the bottom' if y_cm > 0 else 'near the top'
+        y_part = f"{_cm_to_words(y_cm)} centimetres {vert}"
 
 
-    z_part = f"a una profondita' di {_cm_to_words(z_cm)} centimetri"
+    z_part = f"at a depth of {_cm_to_words(z_cm)} centimetres"
 
     return f"{x_part}, {y_part}, {z_part}"
 
 
 _WORD_DIGITS = {
-    "zero": "0", "uno": "1", "due": "2", "tre": "3", "quattro": "4",
-    "cinque": "5", "sei": "6", "sette": "7", "otto": "8", "nove": "9",
+    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+    "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
 }
 
 
 _WORD_NUMBERS = {
-    "cento": 100, "duecento": 200, "trecento": 300, "quattrocento": 400,
-    "cinquecento": 500, "seicento": 600, "settecento": 700,
-    "ottocento": 800, "novecento": 900,
-    "venti": 20, "ventuno": 21, "ventidue": 22, "ventitre": 23, "ventitré": 23,
-    "ventiquattro": 24, "venticinque": 25, "ventisei": 26, "ventisette": 27,
-    "ventotto": 28, "ventinove": 29,
-    "trenta": 30, "quaranta": 40, "cinquanta": 50, "sessanta": 60,
-    "settanta": 70, "ottanta": 80, "novanta": 90,
-    "dieci": 10, "undici": 11, "dodici": 12, "tredici": 13, "quattordici": 14,
-    "quindici": 15, "sedici": 16, "diciassette": 17, "diciotto": 18,
-    "diciannove": 19,
-    "uno": 1, "due": 2, "tre": 3, "quattro": 4, "cinque": 5, "sei": 6,
-    "sette": 7, "otto": 8, "nove": 9,
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40,
+    "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
+    "hundred": 100,
 }
 
 
 _WORD_LETTERS = {
-    "a": "A", "ah": "A", " a ": "A",
-    "bi": "B", "be": "B", "b": "B",
-    "ci": "C", "ce": "C", "c": "C",
-    "di": "D", "de": "D", "d": "D",
+    "a": "A", "ay": "A", "a.": "A",
+    "b": "B", "bee": "B", "be": "B",
+    "c": "C", "see": "C", "sea": "C",
+    "d": "D", "dee": "D",
 }
 
 
 def _words_to_number(text):
-
-
-    tokens = text.split()
-
-
-    digit_seq = ""
-    for t in tokens:
-        if t in _WORD_DIGITS:
-            digit_seq += _WORD_DIGITS[t]
-    if len(digit_seq) >= 2:
-        return digit_seq
-
-
+    tokens = re.findall(r"[a-z]+", text.lower())
+    numeric = [t for t in tokens if t in _WORD_NUMBERS]
+    if not numeric:
+        return ""
+    if len(numeric) >= 2 and all(t in _WORD_DIGITS for t in numeric):
+        return "".join(_WORD_DIGITS[t] for t in numeric)
     total = 0
-    found = False
-    for t in tokens:
-        if t in _WORD_NUMBERS:
-            val = _WORD_NUMBERS[t]
-            found = True
-            if val >= 100:
-                total += val
-            else:
-                total += val
-    if found and total > 0:
-        return str(total)
-
-    return ""
+    for token in numeric:
+        value = _WORD_NUMBERS[token]
+        if token == "hundred":
+            total = max(total, 1) * 100
+        else:
+            total += value
+    return str(total) if total > 0 else ""
 
 
 class VoiceAssistant:
@@ -163,7 +144,7 @@ class VoiceAssistant:
 
         import importlib.util
         if importlib.util.find_spec("pyttsx3") is None:
-            raise ImportError("pyttsx3 assente: installa requirements_voice.txt")
+            raise ImportError('pyttsx3 unavailable: install requirements_voice.txt')
         self.scene = scene_state
         self.all_class_names = set(all_class_names or [])
         self._runtime = VoiceRuntime(scene_state, self.all_class_names, _voice_worker)
@@ -207,7 +188,7 @@ class VoiceAssistant:
         if self.whisper is None:
             self._set_state("STARTING")
             from faster_whisper import WhisperModel
-            print(f"[VOICE] Carico Whisper '{WHISPER_MODEL_SIZE}' nel processo vocale...")
+            print(f"[VOICE] Loading Whisper \'{WHISPER_MODEL_SIZE}\' in the voice worker...")
             self.whisper = WhisperModel(WHISPER_MODEL_SIZE, device="auto", compute_type="auto")
         self._check_cancelled()
 
@@ -223,24 +204,24 @@ class VoiceAssistant:
             self._check_cancelled()
             if not query:
                 self._set_state("SPEAKING")
-                self._speak("Non ho capito, riprova.")
+                self._speak('I did not understand. Please try again.')
                 return
             print(f"[VOICE] Query: {query!r}")
 
 
             scene = self.scene.snapshot()
             scene_classes = {p["class_name"] for p in scene.values()}
-            print(f"[VOICE] Classi in scena: {scene_classes or '(nessuna)'}")
+            print(f"[VOICE] Scene classes: {scene_classes or '(none)'}")
 
 
             target_class = self._extract_class(query, scene_classes=scene_classes)
             self._check_cancelled()
-            print(f"[VOICE] Classe individuata: {target_class!r}")
+            print(f"[VOICE] Identified class: {target_class!r}")
 
             if target_class is None:
                 self._set_state("SPEAKING")
-                self._speak("Non ho capito di quale pezzo stai parlando. "
-                            "Puoi ripetere il codice o descriverlo meglio?")
+                self._speak('I could not identify the part. '
+                            'Please repeat its code or describe it more precisely.')
                 return
 
 
@@ -252,7 +233,7 @@ class VoiceAssistant:
 
 
             answer = self._build_answer(target_class, matching)
-            print(f"[VOICE] Risposta: {answer!r}")
+            print(f"[VOICE] Answer: {answer!r}")
 
             self._set_state("SPEAKING")
             self._speak(answer)
@@ -261,12 +242,12 @@ class VoiceAssistant:
             return
         except Exception as e:
             self._connection.send(("error", self._job_id, str(e)))
-            print(f"[VOICE] ERRORE pipeline: {e}")
+            print(f"[VOICE] Pipeline ERROR: {e}")
             traceback.print_exc()
             try:
                 self._check_cancelled()
                 self._set_state("SPEAKING")
-                self._speak("Si e' verificato un errore.")
+                self._speak('An error occurred.')
             except Exception:
                 pass
         finally:
@@ -281,20 +262,20 @@ class VoiceAssistant:
         name = f"{spelled}{hint}"
 
         if not matching:
-            return (f"Il pezzo {name} non e' presente nella scena al momento.")
+            return (f"Part {name} is not currently in the scene.")
 
         if len(matching) == 1:
             _, p = matching[0]
             pos = self._describe_part_position(p)
-            return (f"Il pezzo {name} si trova {pos}.")
+            return (f"Part {name} is {pos}.")
 
 
         parts = []
         for i, (_, p) in enumerate(matching, start=1):
             pos = self._describe_part_position(p)
-            parts.append(f"il {_ordinal_it(i)} {pos}")
+            parts.append(f"the {_ordinal_it(i)} {pos}")
         joined = "; ".join(parts)
-        return (f"Ci sono {len(matching)} pezzi {name}: {joined}.")
+        return (f"There are {len(matching)} parts {name}: {joined}.")
 
     def _describe_part_position(self, part):
         world = part.get("world_xyz")
@@ -302,9 +283,9 @@ class VoiceAssistant:
             return describe_position(world)
         h, w = self.scene.get_frame_shape()
         x, y = part["pixel_xy"]
-        side = "sul piano sinistro" if x < w / 2 else "sul piano destro"
-        level = "in alto" if y < h / 3 else ("in basso" if y > 2 * h / 3 else "al centro")
-        return f"{side}, {level}; la profondita' non e' disponibile"
+        side = 'on the left-hand surface' if x < w / 2 else 'on the right-hand surface'
+        level = 'near the top' if y < h / 3 else ('near the bottom' if y > 2 * h / 3 else 'in the centre')
+        return f"{side}, {level}; depth is unavailable"
 
     def _short_hint(self, code):
 
@@ -314,7 +295,7 @@ class VoiceAssistant:
 
         common = info["sinonimi"][0] if info.get("sinonimi") else None
         if common:
-            return f", cioe' il {common},"
+            return f", the {common},"
         return ""
 
 
@@ -343,7 +324,7 @@ class VoiceAssistant:
             cand = f"{letter.upper()}{number}"
             for known in self.all_class_names:
                 if known.upper() == cand:
-                    print(f"[VOICE] match strategia 1 (codice formato): {known}")
+                    print(f"[VOICE] Strategy 1 match (explicit code): {known}")
                     return known
 
 
@@ -352,26 +333,26 @@ class VoiceAssistant:
 
                 cands = num_to_classes[number]
                 if len(cands) == 1:
-                    print(f"[VOICE] match strategia 2 (numero formato): {cands[0]}")
+                    print(f"[VOICE] Strategy 2 match (explicit number): {cands[0]}")
                     return cands[0]
 
                 disamb = self._disambiguate_by_letter(q, cands)
                 if disamb:
-                    print(f"[VOICE] match strategia 2+lettera: {disamb}")
+                    print(f"[VOICE] Strategy 2 + letter match: {disamb}")
                     return disamb
 
 
         number_words = _words_to_number(q)
         if number_words and number_words in num_to_classes:
             cands = num_to_classes[number_words]
-            print(f"[VOICE] numero da parole: {number_words!r} -> candidati {cands}")
+            print(f"[VOICE] Number from words: {number_words!r} -> candidates {cands}")
             if len(cands) == 1:
                 return cands[0]
             disamb = self._disambiguate_by_letter(q, cands)
             if disamb:
                 return disamb
 
-            print(f"[VOICE] piu' classi con numero {number_words}, scelgo {cands[0]}")
+            print(f"[VOICE] Multiple classes for number {number_words}; selecting {cands[0]}")
             return cands[0]
 
 
@@ -381,19 +362,19 @@ class VoiceAssistant:
                 if scene_classes:
                     res = self._extract_class_llama(query, restrict_to=scene_classes)
                     if res:
-                        print(f"[VOICE] match strategia 5 (descrizione, in scena): {res}")
+                        print(f"[VOICE] Strategy 5 match (description, scene): {res}")
                         return res
 
                 res = self._extract_class_llama(query, restrict_to=None)
                 if res:
-                    print(f"[VOICE] match strategia 5 (descrizione, catalogo): {res}")
+                    print(f"[VOICE] Strategy 5 match (description, catalogue): {res}")
                     return res
             except VoiceCancelled:
                 raise
             except Exception as e:
-                print(f"[VOICE] Strategia 5 (LLM) fallita: {e}")
+                print(f"[VOICE] Strategy 5 (LLM) failed: {e}")
 
-        print("[VOICE] Nessuna strategia di parsing ha funzionato.")
+        print('[VOICE] No parsing strategy matched.')
         return None
 
     def _disambiguate_by_letter(self, query_lower, candidates):
@@ -431,23 +412,23 @@ class VoiceAssistant:
         codes_str = ", ".join(valid_codes)
 
         system = (
-            "Sei un assistente che identifica pezzi di un kit Meccano a partire "
-            "dalla descrizione a voce di un operatore. Di seguito il CATALOGO "
-            "dei pezzi con descrizione e modi alternativi di chiamarli:\n\n"
+            'You identify Meccano kit parts from '
+            "an operator's spoken description. Below is the CATALOGUE "
+            'of parts, descriptions and alternative names:\n\n'
             f"{catalog_text}\n\n"
-            "L'operatore ti dara' una descrizione qualitativa di UN pezzo "
-            "(colore, forma, numero di buchi, tipo). Il tuo compito e' capire "
-            "di quale pezzo si tratta e rispondere SOLO con il suo codice, "
-            f"scelto ESATTAMENTE da questa lista: {codes_str}. "
-            "Presta attenzione ai dettagli distintivi: colore (rosso, grigio, "
-            "bianco, nero), numero di buchi, forma (dritto, a gomito/L, storto), "
-            "e presenza o assenza di scanalature. "
-            "Rispondi con il solo codice, senza spiegazioni. Se la descrizione "
-            "non corrisponde a nessun pezzo del catalogo, rispondi: NESSUNO."
+            'The operator will describe ONE part '
+            '(colour, shape, hole count, type). Identify '
+            'the part and respond ONLY with its code, '
+            f"chosen EXACTLY from this list: {codes_str}. "
+            'Pay attention to distinguishing features: colour (red, grey, '
+            'white, black), hole count, shape (straight, elbow/L-shaped, irregular), '
+            'and the presence or absence of grooves. '
+            'Return only the code, without explanation. If the description '
+            'matches no catalogue part, return NONE.'
         )
         messages = [
             {"role": "system", "content": system},
-            {"role": "user", "content": f'Descrizione dell\'operatore: "{query}"'},
+            {"role": "user", "content": f'Operator description: \"{query}"'},
         ]
         r = requests.post(
             OLLAMA_URL,
@@ -459,7 +440,7 @@ class VoiceAssistant:
         r.raise_for_status()
         out = r.json()["message"]["content"].strip().upper()
         out = re.sub(r"[^A-Z0-9]", "", out)                                     
-        print(f"[VOICE] LLM ha proposto il codice: {out!r}")
+        print(f"[VOICE] LLM proposed code: {out!r}")
 
         for code in valid_codes:
             if code.upper() == out:
@@ -470,7 +451,7 @@ class VoiceAssistant:
     def _record_audio(self):
         import sounddevice as sd
         self._check_cancelled()
-        print(f"[VOICE] Registro {RECORD_SECONDS}s. Parla...")
+        print(f"[VOICE] Recording {RECORD_SECONDS}s. Speak now...")
         try:
             audio = sd.rec(int(RECORD_SECONDS * SAMPLE_RATE), samplerate=SAMPLE_RATE,
                            channels=1, dtype="float32", blocking=False)
@@ -485,7 +466,7 @@ class VoiceAssistant:
 
     def _transcribe(self, audio):
         self._check_cancelled()
-        print("[VOICE] Trascrivo...")
+        print('[VOICE] Transcribing...')
         segments, _ = self.whisper.transcribe(
             audio, language=WHISPER_LANGUAGE, beam_size=5, vad_filter=True)
         words = []
@@ -504,7 +485,7 @@ class VoiceAssistant:
             self._tts.setProperty("rate", TTS_RATE)
             for voice in self._tts.getProperty("voices"):
                 name = (str(voice.name)+" "+str(voice.id or "")).lower()
-                if any(token in name for token in ("italian", "italia", "it_", "it-")):
+                if any(token in name for token in ("english", "en_", "en-")):
                     self._tts.setProperty("voice", voice.id)
                     break
         engine = self._tts
@@ -513,7 +494,7 @@ class VoiceAssistant:
         error_token = engine.connect("error", lambda name, exception: errors.append(exception))
         try:
             self._check_cancelled()
-            print(f"[VOICE] Parlo: {text!r}")
+            print(f"[VOICE] Speaking: {text!r}")
             engine.say(text)
             engine.startLoop(False)
             loop_started = True
@@ -593,7 +574,7 @@ def _voice_worker(connection, cancel, class_names):
 
 
 def _ordinal_it(n):
-    ordinals = {1: "primo", 2: "secondo", 3: "terzo", 4: "quarto",
-                5: "quinto", 6: "sesto", 7: "settimo", 8: "ottavo",
-                9: "nono", 10: "decimo"}
-    return ordinals.get(n, f"numero {n}")
+    ordinals = {1: 'first', 2: 'second', 3: 'third', 4: 'fourth',
+                5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth',
+                9: 'ninth', 10: 'tenth'}
+    return ordinals.get(n, f"number {n}")

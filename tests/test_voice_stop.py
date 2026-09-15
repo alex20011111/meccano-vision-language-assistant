@@ -24,10 +24,10 @@ def simulated_worker(connection, cancel, class_names):
                 connection.send(("scene",job))
                 result=connection.recv()
                 if result[3][9]["class_name"] != "A003":
-                    connection.send(("error",job,"snapshot non aggiornato"))
+                    connection.send(("error",job,"stale snapshot"))
                 connection.send(("done",job))
             elif text == "fail":
-                connection.send(("error",job,"errore simulato"))
+                connection.send(("error",job,"simulated error"))
                 connection.send(("done",job))
             elif text == "crash":
                 import os
@@ -62,7 +62,7 @@ class RuntimeStopTests(unittest.TestCase):
         while time.monotonic()<end:
             if predicate(): return
             time.sleep(0.01)
-        self.fail(f"Condizione non raggiunta; stato={self.runtime.state}; errore={self.runtime.last_error}")
+        self.fail(f"Condition not reached; state={self.runtime.state}; error={self.runtime.last_error}")
 
     def test_worker_is_lazy_no_process_before_first_request(self):
         self.assertIsNone(self.runtime._process)
@@ -151,7 +151,7 @@ class RuntimeStopTests(unittest.TestCase):
     def test_runtime_error_is_reported_and_next_request_can_recover(self):
         self.runtime.submit("say","fail")
         self.wait_for(lambda:not self.runtime.is_busy())
-        self.assertEqual(self.runtime.last_error,"errore simulato")
+        self.assertEqual(self.runtime.last_error,"simulated error")
         self.assertTrue(self.runtime.submit("say","instant"))
         self.wait_for(lambda:not self.runtime.is_busy())
         self.assertEqual(self.runtime.last_error,"")
@@ -206,7 +206,7 @@ class AudioAdapterStopTests(unittest.TestCase):
             def endLoop(self):calls.append("end")
             def disconnect(self,token):calls.append(("disconnect",token))
         with patch.dict(sys.modules,{"pyttsx3":SimpleNamespace(init=lambda:Engine())}):
-            with self.assertRaises(VoiceCancelled):v._speak("frase di prova")
+            with self.assertRaises(VoiceCancelled):v._speak("test sentence")
         self.assertIn(("loop",False),calls)
         self.assertEqual(calls[-3:],["stop","end",("disconnect",5)])
 

@@ -46,7 +46,7 @@ class VoiceRuntime:
 
     def submit(self, kind, text="", *, interrupt=False, tag=None):
         if kind not in {"query", "say"}:
-            raise ValueError("Comando vocale non valido.")
+            raise ValueError('Invalid voice command.')
         if kind == "say" and not str(text).strip():
             return False
         with self._lock:
@@ -133,8 +133,8 @@ class VoiceRuntime:
         if self._process is not None:
             if not self._process.is_alive():
                 if self._current is not None and self._cancel_at is None:
-                    self._last_error = ("Il processo vocale si e' chiuso in modo inatteso "
-                                        f"(codice {self._process.exitcode}). Premi R per riprovare.")
+                    self._last_error = ('The voice worker exited unexpectedly '
+                                        f"(code {self._process.exitcode}). Press R to try again.")
                 self._dispose_locked()
             elif self._cancel_at is not None:
                 now = time.monotonic()
@@ -178,10 +178,10 @@ class VoiceRuntime:
                 try:
                     self._tick_locked()
                 except (EOFError, OSError, BrokenPipeError) as exc:
-                    self._last_error = f"Comunicazione vocale interrotta: {exc}"
+                    self._last_error = f"Voice communication interrupted: {exc}"
                     self._request_stop_locked()
                 except Exception as exc:
-                    self._last_error = f"Errore del processo vocale: {exc}"
+                    self._last_error = f"Voice worker error: {exc}"
                     self._request_stop_locked()
                 if self._closed and self._process is None:
                     return

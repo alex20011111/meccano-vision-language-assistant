@@ -26,17 +26,17 @@ def rotate_png(code, degrees):
 
     png_path = os.path.join(SIL_DIR, f"{code}.png")
     if not os.path.exists(png_path):
-        print(f"  ERRORE: {png_path} non trovato.")
+        print(f"  ERROR: {png_path} not found.")
 
         disponibili = [f[:-4] for f in os.listdir(SIL_DIR) if f.lower().endswith(".png")]
-        print(f"  Pezzi disponibili: {', '.join(sorted(disponibili))}")
+        print(f"  Available parts: {', '.join(sorted(disponibili))}")
         return False
 
     img = Image.open(png_path).convert("RGBA")
 
     deg = degrees % 360
     if deg == 0:
-        print("  0 gradi: nessuna modifica.")
+        print('  0 degrees: no change.')
         return True
 
 
@@ -60,15 +60,15 @@ def rotate_png(code, degrees):
             info["size_mm"] = [info["size_mm"][1], info["size_mm"][0]]
         save_meta(meta)
 
-    print(f"  OK: {code} ruotato di {deg} gradi. Nuova dimensione {out.width}x{out.height}px.")
+    print(f"  OK: {code} rotated by {deg} degrees. New size {out.width}x{out.height}px.")
     return True
 
 
 def main():
-    print(f"Cartella silhouette: {SIL_DIR}")
+    print(f"Silhouette folder: {SIL_DIR}")
     if not os.path.isdir(SIL_DIR):
-        print("ERRORE: la cartella delle silhouette non esiste. "
-              "Controlla il percorso SIL_DIR in cima allo script.")
+        print('ERROR: the silhouette folder does not exist. '
+              'Check the SIL_DIR path at the top of the script.')
         return
 
 
@@ -77,22 +77,22 @@ def main():
         try:
             deg = float(sys.argv[2])
         except ValueError:
-            print("Il secondo argomento deve essere un numero di gradi.")
+            print('The second argument must be an angle in degrees.')
             return
         rotate_png(code, deg)
         return
 
 
-    print("\nModalita' interattiva. Scrivi 'fine' come nome pezzo per uscire.\n")
+    print("\nInteractive mode. Enter 'exit' as the part name to stop.\n")
     while True:
-        code = input("Nome del pezzo (es. A077): ").strip().upper()
-        if code in ("FINE", "EXIT", "Q", ""):
-            print("Uscita.")
+        code = input('Part code (e.g. A077): ').strip().upper()
+        if code in ('END', "EXIT", "Q", ""):
+            print('Exiting.')
             break
         try:
-            deg = float(input("Di quanti gradi ruotarlo? (es. 180): ").strip())
+            deg = float(input('Rotation in degrees (e.g. 180): ').strip())
         except ValueError:
-            print("  Devi inserire un numero. Riprova.\n")
+            print('  Enter a number. Try again.\n')
             continue
         rotate_png(code, deg)
         print()

@@ -41,12 +41,12 @@ class ObservationFilterTests(unittest.TestCase):
         accepted, rejected = filtered([huge])
         self.assertEqual(accepted, [])
         self.assertEqual(len(rejected), 1)
-        self.assertIn("troppo largo", rejected[0]["reason"])
+        self.assertIn("too wide", rejected[0]["reason"])
 
     def test_weak_raw_only_detection_rejected_without_changing_tracking_confidence(self):
         accepted, rejected = filtered([observation((800, 100, 830, 130), confidence=.12)])
         self.assertEqual(accepted, [])
-        self.assertEqual(rejected[0]["reason"], "confidenza bassa")
+        self.assertEqual(rejected[0]["reason"], "low confidence")
         self.assertEqual(tracker.INFER_CONF, .10)
         self.assertEqual(tracker.WORKSPACE_MIN_RAW_CONF, .35)
 
@@ -82,7 +82,7 @@ class ObservationFilterTests(unittest.TestCase):
     def test_oversized_box_cannot_be_made_plausible_by_clipping(self):
         accepted, rejected = filtered([observation((1250, 10, 2500, 50))])
         self.assertEqual(accepted, [])
-        self.assertIn("troppo largo", rejected[0]["reason"])
+        self.assertIn("too wide", rejected[0]["reason"])
 
     def test_partially_visible_valid_piece_is_clipped(self):
         accepted, _ = filtered([observation((1250, 10, 1290, 50))])
@@ -245,22 +245,22 @@ class RightGuardFixTests(Fixture):
         left = c.left_parts
         self.feed(c, left, raw_from(left+[part(cx=900)]))
         self.assertFalse(c.generate(now=c._now).ok)
-        self.assertIn("occupato", c.message)
+        self.assertIn("occupied", c.message)
         self.feed(c, left, raw_from(left))
-        self.assertIn("Attendo", c.message)
+        self.assertIn("Waiting", c.message)
         self.feed(c, left, raw_from(left))
-        self.assertIn("Piano destro libero", c.message)
-        self.assertNotIn("occupato", c.message)
+        self.assertIn("Right-hand area clear", c.message)
+        self.assertNotIn("occupied", c.message)
 
     def test_refresh_never_overwrites_new_stop_message(self):
         c = self.ready_controller()
         left = c.left_parts
         self.feed(c, left, raw_from(left+[part(cx=900)]))
         c.generate(now=c._now)
-        c.message = "Voce interrotta."
+        c.message = "Voice stopped."
         self.feed(c, left, raw_from(left))
         self.feed(c, left, raw_from(left))
-        self.assertEqual(c.message, "Voce interrotta.")
+        self.assertEqual(c.message, "Voice stopped.")
 
     def test_large_right_hand_blocks_but_does_not_claim_returnable_parts(self):
         c = self.ready_controller()
@@ -269,14 +269,14 @@ class RightGuardFixTests(Fixture):
         self.assertTrue(c.guard.occupied)
         self.assertFalse(c.right_has_parts)
         self.assertIsNone(c.take_return_announcement())
-        self.assertIn("MANO", workspace_status(c))
-        self.assertIn("Mano", c.readiness_reason(c._now))
+        self.assertIn("HAND", workspace_status(c))
+        self.assertIn("Hand", c.readiness_reason(c._now))
 
     def test_invalid_snapshot_is_reported_unknown_not_occupied(self):
         c = self.ready_controller()
         self.feed(c, [], None)
         self.assertFalse(c.generate(now=c._now).ok)
-        self.assertIn("NON DISPONIBILE", workspace_status(c))
+        self.assertIn("UNAVAILABLE", workspace_status(c))
 
     def test_source_coordinates_do_not_depend_on_ui_scale_or_offset(self):
         c = self.ready_controller()
@@ -312,7 +312,7 @@ class DiagnosticsTests(Fixture):
             draw_workspace_blockers(img, blockers, 200)
         self.assertFalse(np.any(img[:,:200]))
         self.assertTrue(np.any(img[:,200:]))
-        self.assertTrue(any("CONTROLLO DX" in call.args[1] for call in put.call_args_list))
+        self.assertTrue(any("RIGHT CHECK" in call.args[1] for call in put.call_args_list))
 
     def test_existing_tracking_box_does_not_get_duplicate_diagnostic_rectangle(self):
         img = np.zeros((200,400,3), np.uint8)
@@ -325,9 +325,9 @@ class DiagnosticsTests(Fixture):
         obs, rejected = filtered(raw)
         c.observe([],[],obs,now=.4,rejected_detections=rejected)
         lines = [text for text, _ in workspace_rows(c)]
-        self.assertTrue(any("A003 - senza ID" in line for line in lines))
-        self.assertTrue(any("x2=940.0; linea=640" in line for line in lines))
-        self.assertIn("Candidati grezzi scartati: 1", lines)
+        self.assertTrue(any("A003 - no ID" in line for line in lines))
+        self.assertTrue(any("x2=940.0; line=640" in line for line in lines))
+        self.assertIn("Rejected raw candidates: 1", lines)
 
 
 class RawNoiseMainLoopTests(Fixture):

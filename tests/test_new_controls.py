@@ -40,7 +40,7 @@ class ReturnNoticeTests(Fixture):
         self.assertEqual(c.guide.slots, [])
         self.assertEqual(c.right_parts, before)
         self.assertEqual(c.return_warning, RETURN_PARTS_MESSAGE)
-        self.assertEqual(c.take_return_announcement(), "RIPORTARE I PEZZI NEL PIANO DI PARTENZA")
+        self.assertEqual(c.take_return_announcement(), "RETURN THE PARTS TO THE STARTING AREA")
 
     def test_x_without_right_parts_does_not_warn(self):
         c = self.controller_with_figure(); c.finish()
@@ -181,7 +181,7 @@ class TrackingAndUIRegressionTests(Fixture):
 
     def test_written_banner_survives_stop_and_other_status_messages(self):
         c=self.ready_controller(); c.return_warning_visible=True
-        c.message="Voce interrotta."
+        c.message="Voice stopped."
         ui=CompositionUI("test")
         with patch('composition_ui.put_text') as put:
             ui.draw(np.zeros((720,1280,3),np.uint8),c)
@@ -197,8 +197,8 @@ class TrackingAndUIRegressionTests(Fixture):
     def test_original_class_stabilizer_is_unchanged(self):
         source=Path(tracker.__file__).read_text(encoding='utf-8')
         node=next(n for n in ast.parse(source).body if isinstance(n,ast.ClassDef) and n.name=='ClassStabilizer')
-        digest=hashlib.sha256(ast.dump(node,include_attributes=False).encode()).hexdigest()
-        self.assertEqual(digest, '20594ba114848abf39d24b79519bc1c25452904888cb58f11d11606f34955268')
+        digest=hashlib.sha256(ast.get_source_segment(source,node).encode()).hexdigest()
+        self.assertEqual(digest, '40f14c011eddc88af6d4a4dc06da86eab744af73eaa702a270ae211bcd7f42ee')
 
 
 if __name__=='__main__': unittest.main()

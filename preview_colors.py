@@ -8,10 +8,10 @@ import numpy as np
 p = argparse.ArgumentParser()
 p.add_argument("--hdri_dir", required=True)
 p.add_argument("--colori", nargs="+", default=["0.28,0.28,0.29"],
-               help="lista di colori r,g,b (0-1) separati da spazio")
-p.add_argument("--out", default="prova_colori.png")
+               help='space-separated r,g,b colour triples in the 0–1 range')
+p.add_argument("--out", default="preview_colors.png")
 p.add_argument("--roughness", type=float, default=0.5,
-               help="stessa rugosita' del generatore (plastica opaca)")
+               help='same roughness as the generator (matte plastic)')
 args = p.parse_args()
 
 import glob
@@ -26,7 +26,7 @@ for c in args.colori:
 hdris = [f for f in glob.glob(os.path.join(args.hdri_dir, "**", "*"), recursive=True)
          if f.lower().endswith((".hdr", ".exr"))]
 if not hdris:
-    raise SystemExit(f"Nessun HDRI in {args.hdri_dir}")
+    raise SystemExit(f"No HDRI in {args.hdri_dir}")
 
 bproc.init()
 bproc.world.set_world_background_hdr_img(hdris[0], strength=1.0)
@@ -62,9 +62,9 @@ except Exception:
     from PIL import Image
     Image.fromarray(np.asarray(img).astype(np.uint8)).save(args.out)
 
-print(f"\nSalvata anteprima in {os.path.abspath(args.out)}")
-print("Colori mostrati (da sinistra a destra):")
+print(f"\nPreview saved to {os.path.abspath(args.out)}")
+print('Colours shown from left to right:')
 for rgb in colori:
     print(f"  {rgb[0]:.2f}, {rgb[1]:.2f}, {rgb[2]:.2f}")
-print("\nQuando trovi il grigio giusto, mettilo in crea_mappa.py alla voce "
-      "\"grigio\" e rigenera la mappa.")
+print('\nSet the chosen grey in create_class_map.py under '
+      '"grey" and regenerate the mapping.')

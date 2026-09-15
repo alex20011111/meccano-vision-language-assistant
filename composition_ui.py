@@ -64,7 +64,7 @@ def draw_workspace_blockers(image, blockers, split_x):
         colour = (70, 140, 255)
         cv2.rectangle(right, (x1, y1), (x2, y2), colour, 2)
         code = detection.get("class_name", "?")
-        label = "MANO: LIBERA IL PIANO" if is_hand(code) else f"CONTROLLO DX {code} (senza ID)"
+        label = 'HAND: CLEAR THE SURFACE' if is_hand(code) else f"RIGHT CHECK {code} (no ID)"
         confidence = detection.get("conf")
         if confidence is not None:
             label += f" {float(confidence):.2f}"
@@ -81,18 +81,18 @@ def draw_workspace_blockers(image, blockers, split_x):
 def workspace_status(controller):
 
     if not controller.frame_valid:
-        return "DESTRO: CONTROLLO NON DISPONIBILE"
+        return 'RIGHT: CHECK UNAVAILABLE'
     if controller.guard.occupied:
         count = sum(not is_hand(d.get("class_name")) for d in controller.right_blockers)
-        return f"DESTRO OCCUPATO ({count})" if count else "DESTRO: MANO PRESENTE"
+        return f"RIGHT AREA OCCUPIED ({count})" if count else 'RIGHT: HAND PRESENT'
     if controller.guard.ready(controller._now):
-        return "DESTRO LIBERO"
-    return "DESTRO: VERIFICA IN CORSO"
+        return 'RIGHT AREA CLEAR'
+    return 'RIGHT: CHECKING'
 
 
 def workspace_rows(controller):
 
-    rows = [("", (0,0,0)), ("CONTROLLO PIANO DESTRO", (190,210,220))]
+    rows = [("", (0,0,0)), ('RIGHT-HAND AREA CHECK', (190,210,220))]
     status_colour = ((150,150,180) if not controller.frame_valid else
                      (120,195,255) if controller.guard.occupied else
                      (150,220,150) if controller.guard.ready(controller._now) else (180,180,180))
@@ -100,20 +100,20 @@ def workspace_rows(controller):
     for detection in controller.right_blockers:
         code = detection.get("class_name", "?")
         tid = detection.get("tid")
-        source = f"ID{tid}" if detection.get("source") == "tracking" and tid is not None else "senza ID"
+        source = f"ID{tid}" if detection.get("source") == "tracking" and tid is not None else 'no ID'
         label = f"{code} - {source}"
         if detection.get("conf") is not None:
             label += f" - {float(detection['conf']):.2f}"
         rows.append((label, (120,195,255)))
-        rows.append((f"  x2={detection['bbox'][2]:.1f}; linea={controller.guide.split_x}",
+        rows.append((f"  x2={detection['bbox'][2]:.1f}; line={controller.guide.split_x}",
                      (155,155,155)))
     rejected = controller.rejected_detections
     if rejected:
-        rows.append((f"Candidati grezzi scartati: {len(rejected)}", (150,150,150)))
-        if any(d["reason"] == "confidenza bassa" for d in rejected):
-            rows.append(("  Confidenza insufficiente.", (150,150,150)))
-        if any(d["reason"] != "confidenza bassa" for d in rejected):
-            rows.append(("  Box/coordinate non plausibili.", (150,150,150)))
+        rows.append((f"Rejected raw candidates: {len(rejected)}", (150,150,150)))
+        if any(d["reason"] == 'low confidence' for d in rejected):
+            rows.append(('  Insufficient confidence.', (150,150,150)))
+        if any(d["reason"] != 'low confidence' for d in rejected):
+            rows.append(('  Implausible box/coordinates.', (150,150,150)))
     return rows
 
 
@@ -159,13 +159,13 @@ class CompositionUI:
         canvas[oy:oy+vh,ox:ox+vw] = cv2.resize(camera,(vw,vh), interpolation=cv2.INTER_AREA)
         ready = not controller.readiness_reason(controller._now)
         states = [
-            ("start", "[G] Avvia composizione", not controller.guide.generated and ready),
-            ("verify", "[V] Nascondi verifica" if controller.verification_visible else "[V] Verifica pezzi",
+            ("start", '[G] Start composition', not controller.guide.generated and ready),
+            ("verify", '[V] Hide part summary' if controller.verification_visible else '[V] Check parts',
              controller.guide.generated),
-            ("change", "[N] Cambia composizione", controller.guide.generated and ready),
-            ("voice", "[R] Domanda vocale", voice is not None and not voice.is_busy()),
-            ("stop_voice", "[S] Stop voce", voice is not None),
-            ("finish", "[X] Concludi / azzera", True)]
+            ("change", '[N] Change composition', controller.guide.generated and ready),
+            ("voice", '[R] Voice query', voice is not None and not voice.is_busy()),
+            ("stop_voice", '[S] Stop voice', voice is not None),
+            ("finish", '[X] Finish / reset', True)]
         gap = 8
         bw = (self.width-gap*(len(states)+1))//len(states)
         self.buttons = []
@@ -186,9 +186,9 @@ class CompositionUI:
         fy = self.height-self.footer_h
         cv2.line(canvas,(0,fy),(self.width,fy),(74,74,74),1)
         right_status = workspace_status(controller)
-        voice_state = voice.state if voice is not None else "non disponibile"
-        first = (f"Sinistra: {len(controller.left_parts)} riconosciuti | "
-                 f"Completati: {report['done']}/{report['total']} | {right_status} | Voce: {voice_state}")
+        voice_state = voice.state if voice is not None else 'unavailable'
+        first = (f"Left: {len(controller.left_parts)} recognised | "
+                 f"Completed: {report['done']}/{report['total']} | {right_status} | Voice: {voice_state}")
         put_text(canvas,first,(10,fy+20),0.45)
         message_y = fy+44
         if controller.return_warning:
@@ -199,34 +199,34 @@ class CompositionUI:
             put_text(canvas,controller.return_warning,(14,fy+51),scale,(255,255,255),2)
             message_y = fy+79
         voice_error = getattr(voice, "last_error", "") if voice is not None else ""
-        message = ("Errore voce: " + voice_error) if voice_error else controller.message
+        message = ('Voice error: ' + voice_error) if voice_error else controller.message
         lines = wrap_text(message,self.width-24,0.43)
         for i,line in enumerate(lines[:2]):
             put_text(canvas,line,(10,message_y+17*i),0.43,(170,225,235))
-        put_text(canvas,"Q / ESC: esci",(self.width-116,self.height-5),0.35,(140,140,140))
+        put_text(canvas,'Q / ESC: exit',(self.width-116,self.height-5),0.35,(140,140,140))
         return canvas
 
     def _draw_panel(self, canvas, controller):
         x = self.width-self.panel_w
         bottom = self.height-self.footer_h
         cv2.rectangle(canvas,(x,self.toolbar_h),(self.width-1,bottom),(29,29,29),-1)
-        put_text(canvas,"PEZZI DELLA COMPOSIZIONE",(x+12,self.toolbar_h+25),0.49)
+        put_text(canvas,'COMPOSITION PARTS',(x+12,self.toolbar_h+25),0.49)
         report = controller.report()
         if not report["total"]:
-            lines = ["1. Tutti i pezzi a sinistra.", "2. Piano destro libero.",
-                     "3. Attendi il riconoscimento.", "4. Premi Avvia [G].", "",
-                     "Una sagoma per ogni pezzo,", "incluse le copie uguali."]
+            lines = ['1. Place all parts on the left.', '2. Clear the right-hand area.',
+                     '3. Wait for recognition.', '4. Press Start [G].', "",
+                     'One silhouette for each part,', 'including identical copies.']
             rows = [(line, (225,225,225)) for line in lines] + workspace_rows(controller)
             self._draw_rows(canvas, rows, x, self.toolbar_h+60, bottom)
             return
 
         complete = controller.guide.completed
-        summary = f"{report['done']} / {report['total']} completati"
+        summary = f"{report['done']} / {report['total']} completed"
         if complete:
             summary += " - OK"
         put_text(canvas,summary,(x+12,self.toolbar_h+49),0.49,
                  (110,230,110) if complete else (220,220,220))
-        put_text(canvas,"Codice       OK/Tot   A destra",(x+12,self.toolbar_h+73),0.43)
+        put_text(canvas,'Code         OK/Total  Right',(x+12,self.toolbar_h+73),0.43)
 
         rows = []
         for code in sorted(set(report["required"]) | set(report["right_present"])):
@@ -238,20 +238,20 @@ class CompositionUI:
                 rows.append(("  "+synonyms[0],(145,145,145)))
         if controller.verification_visible:
             rows.append(("",(0,0,0)))
-            rows.append(("DA PRENDERE A SINISTRA",(0,230,230)))
+            rows.append(('PICK UP ON THE LEFT',(0,230,230)))
             if not report["left_matches"]:
-                rows.append(("Nessun pezzo da evidenziare.",(190,190,190)))
+                rows.append(('No parts to highlight.',(190,190,190)))
             for i,part in enumerate(report["left_matches"],1):
-                rows.append((f"#{i} {part['class_name']}  (riquadro giallo)",(0,230,230)))
-            for title,key in (("Gia' a destra, da sistemare:","right_pending"),
-                              ("Non localizzati:","unlocated"),
-                              ("Pezzi in piu' a destra:","unexpected_right")):
+                rows.append((f"#{i} {part['class_name']}  (yellow box)",(0,230,230)))
+            for title,key in (('On the right, not yet placed:',"right_pending"),
+                              ('Not located:',"unlocated"),
+                              ('Extra parts on the right:',"unexpected_right")):
                 if report[key]:
                     rows.append((title,(170,205,240)))
                     for line in wrap_text(format_counts(report[key]),self.panel_w-26,0.43):
                         rows.append((line,(195,195,195)))
         else:
-            rows += [("",(0,0,0)),("[V] individua i pezzi mancanti",(0,225,225))]
+            rows += [("",(0,0,0)),('[V] locate remaining parts',(0,225,225))]
         rows += workspace_rows(controller)
         self._draw_rows(canvas, rows, x, self.toolbar_h+99, bottom)
 
@@ -262,4 +262,4 @@ class CompositionUI:
         for i,(text,colour) in enumerate(rows[self.scroll:self.scroll+capacity]):
             put_text(canvas,text,(x+12,y0+i*row_h),0.43,colour)
         if len(rows) > capacity:
-            put_text(canvas,"Rotella qui: scorri tutti i pezzi",(x+10,bottom-10),0.4,(160,160,160))
+            put_text(canvas,'Mouse wheel: scroll through parts',(x+10,bottom-10),0.4,(160,160,160))

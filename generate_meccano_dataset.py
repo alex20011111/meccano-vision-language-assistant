@@ -11,25 +11,25 @@ import numpy as np
 
 
 p = argparse.ArgumentParser()
-p.add_argument("--stl_dir", default="stl", help="cartella con gli STL")
+p.add_argument("--stl_dir", default="stl", help='folder containing STL files')
 p.add_argument("--mappa_classi", default="mappa_classi.json",
-               help="JSON con nomi_ordinati (= yolo_model.names) e mappa STL->classe")
+               help='JSON containing nomi_ordinati (= yolo_model.names) and the STL-to-class map')
 p.add_argument("--cc_textures", default="assets/cc_textures")
 p.add_argument("--sfondi_reali", default=None,
-               help="cartella di foto del piano vuoto, da cattura_sfondi.py")
+               help='folder of empty-workbench photographs from cattura_sfondi.py')
 p.add_argument("--prob_sfondo_reale", type=float, default=0.7,
-               help="quota di scene che usa una foto vera invece di una texture CC")
+               help='probability of using a real photograph instead of a CC texture')
 p.add_argument("--prob_mano", type=float, default=0.35,
-               help="quota di scene in cui compare la mano")
+               help='probability of including a hand in a scene')
 p.add_argument("--prob_colore_random", type=float, default=0.12,
-               help="quota di pezzi con colore fuori distribuzione, per non "
-                    "far dipendere il modello solo dal colore")
+               help='probability of out-of-distribution part colours, to avoid '
+                    'making the model depend only on colour')
 p.add_argument("--hdri_dir", default="assets/haven")
 p.add_argument("--output", default="dataset_sintetico")
 
 
-p.add_argument("--z_min", type=float, default=0.30, help="altezza minima camera [m]")
-p.add_argument("--z_max", type=float, default=0.40, help="altezza massima camera [m]")
+p.add_argument("--z_min", type=float, default=0.30, help='minimum camera height [m]')
+p.add_argument("--z_max", type=float, default=0.40, help='maximum camera height [m]')
 p.add_argument("--fx", type=float, default=920.0)
 p.add_argument("--fy", type=float, default=920.0)
 p.add_argument("--cx", type=float, default=640.0)
@@ -40,23 +40,23 @@ p.add_argument("--larghezza", type=int, default=1920)
 p.add_argument("--altezza", type=int, default=1080)
 
 
-p.add_argument("--scene", type=int, default=800, help="numero di simulazioni fisiche")
+p.add_argument("--scene", type=int, default=800, help='number of physics simulations')
 p.add_argument("--viste_per_scena", type=int, default=4)
 p.add_argument("--pezzi_min", type=int, default=4)
 p.add_argument("--pezzi_max", type=int, default=22)
 p.add_argument("--copie_per_classe", type=int, default=4)
 p.add_argument("--area_min_px", type=int, default=250,
-               help="scarta le istanze con meno pixel visibili di questo valore. "
-                    "A 30-40 cm un dado da 10 mm occupa ~600-1600 px, quindi 250 "
-                    "significa 'visibile per meno di un terzo'")
+               help='discard instances with fewer visible pixels than this threshold. '
+                    'At 30–40 cm a 10 mm nut occupies about 600–1600 px, so 250 '
+                    'means less than roughly one third is visible')
 
 
-p.add_argument("--scala_cad", type=float, default=0.001, help="0.001 se gli STL sono in mm")
+p.add_argument("--scala_cad", type=float, default=0.001, help='0.001 for STL files expressed in millimetres')
 p.add_argument("--scala_mano", type=float, default=None,
-               help="scala solo per la mano, se e' in un'unita' diversa dai pezzi. "
-                    "Es. 0.01 se la mano e' in cm mentre i pezzi sono in metri. "
-                    "Se non dato, usa --scala_cad come gli altri.")
-p.add_argument("--qualita", choices=["bassa", "media", "alta"], default="media")
+               help='scale for the hand only, if its units differ from the parts. '
+                    'For example, 0.01 for a centimetre hand mesh with metre part meshes. '
+                    'Defaults to --scala_cad when omitted.')
+p.add_argument("--qualita", choices=['low', 'medium', 'high'], default='medium')
 p.add_argument("--frazione_val", type=float, default=0.1)
 p.add_argument("--seed", type=int, default=0)
 args = p.parse_args()
@@ -75,15 +75,15 @@ colori_per_cat = {}
 
 COLORE_PELLE = [0.80, 0.60, 0.50]
 
-CAMPIONI = {"bassa": 24, "media": 64, "alta": 160}[args.qualita]
-SOGLIA_RUMORE = {"bassa": 0.10, "media": 0.03, "alta": 0.01}[args.qualita]
+CAMPIONI = {'low': 24, 'medium': 64, 'high': 160}[args.qualita]
+SOGLIA_RUMORE = {'low': 0.10, 'medium': 0.03, 'high': 0.01}[args.qualita]
 
 
 import bpy
 try:
     bpy.ops.preferences.addon_enable(module="cycles")
 except Exception as e:
-    print(f"(nota: addon_enable cycles ha risposto: {e})")
+    print(f"(note: addon_enable cycles returned: {e})")
 
 bproc.init()
 
@@ -102,12 +102,12 @@ mm_per_px_min = 1000.0 * args.z_min / args.fx
 mm_per_px_max = 1000.0 * args.z_max / args.fx
 
 print("=" * 68)
-print(f"Camera top-down, altezza randomizzata fra {args.z_min:.2f} e {args.z_max:.2f} m")
-print(f"Area inquadrata a {args.z_min:.2f} m: "
+print(f"Top-down camera, height sampled between {args.z_min:.2f} and {args.z_max:.2f} m")
+print(f"Field of view at {args.z_min:.2f} m: "
       f"{2*mezza_larghezza*100:.1f} x {2*mezza_altezza*100:.1f} cm")
-print(f"SCALA: da {mm_per_px_min:.3f} a {mm_per_px_max:.3f} mm/pixel")
-print(f"  un pezzo da 100 mm occupa {100/mm_per_px_max:.0f}-{100/mm_per_px_min:.0f} px")
-print(f"  un dado da  10 mm occupa {10/mm_per_px_max:.0f}-{10/mm_per_px_min:.0f} px")
+print(f"SCALE: from {mm_per_px_min:.3f} to {mm_per_px_max:.3f} mm/pixel")
+print(f"  a 100 mm part occupies {100/mm_per_px_max:.0f}-{100/mm_per_px_min:.0f} px")
+print(f"  a 10 mm nut occupies {10/mm_per_px_max:.0f}-{10/mm_per_px_min:.0f} px")
 print("=" * 68)
 
 
@@ -127,16 +127,16 @@ def carica_pezzi():
 
     senza_stl = [n for n in nomi if n not in set(stl_map.values())]
     if senza_stl:
-        print(f"  ATTENZIONE - classi senza STL, verranno solo dai dati reali: "
+        print(f"  WARNING - classes without STL must come from real images: "
               f"{', '.join(senza_stl)}")
 
     pezzi = []
     for file_stl, nome in sorted(stl_map.items()):
         path = os.path.join(args.stl_dir, file_stl)
         if not os.path.exists(path):
-            raise SystemExit(f"Manca {path} (citato in {args.mappa_classi})")
+            raise SystemExit(f"Missing {path} (referenced in {args.mappa_classi})")
         if nome not in classi:
-            raise SystemExit(f"'{nome}' non e' in nomi_ordinati")
+            raise SystemExit(f"'{nome}\' is not in nomi_ordinati")
         cat_id = classi[nome]
 
         base = bproc.loader.load_obj(path)[0]
@@ -153,17 +153,17 @@ def carica_pezzi():
             base.persist_transformation_into_mesh(location=False, rotation=False,
                                                   scale=True)
         except RuntimeError as e:
-            print(f"       (scala non fusa per {file_stl}: {e} - proseguo)")
+            print(f"       (scale not applied for {file_stl}: {e} - continuing)")
         base.set_origin(mode="CENTER_OF_VOLUME")
         base.set_shading_mode("auto", 30)
 
         dim = base.get_bound_box()
         est = np.sort(dim.max(axis=0) - dim.min(axis=0))[::-1] * 1000
         etichetta = os.path.splitext(file_stl)[0]
-        print(f"  {etichetta:>16} -> classe {nome:<8} (id {cat_id:>2})  "
+        print(f"  {etichetta:>16} -> class {nome:<8} (id {cat_id:>2})  "
               f"{est[0]:6.1f} x {est[1]:5.1f} x {est[2]:5.1f} mm")
         if est[0] < 3.0:
-            print("       ^ sospetto: pezzo sotto i 3 mm. Controlla --scala_cad.")
+            print('       ^ check scale: part smaller than 3 mm. Inspect --scala_cad.')
 
         for c in range(args.copie_per_classe):
             o = base if c == 0 else base.duplicate()
@@ -175,7 +175,7 @@ def carica_pezzi():
     return pezzi, classi
 
 
-print("\nCarico i pezzi (controlla che gli ingombri siano quelli veri):")
+print('\nLoading parts (check their physical dimensions):')
 pezzi, classi = carica_pezzi()
 
 with open(args.mappa_classi) as f:
@@ -189,15 +189,15 @@ _classi_senza_colore_note = {
 }
 
 if colori_per_cat:
-    print(f"\nColori per classe ({len(colori_per_cat)} definiti):")
+    print(f"\nColours per class ({len(colori_per_cat)} defined):")
     _rev = {v: k for k, v in classi.items()}
     for cid in sorted(colori_per_cat):
         n_col = len(colori_per_cat[cid])
-        print(f"  {_rev.get(cid, cid):<8} {n_col} colore/i")
+        print(f"  {_rev.get(cid, cid):<8} {n_col} colour(s)")
 else:
-    print("\nNessuna sezione 'colori' nella mappa: tutti i pezzi avranno "
-          "colore casuale.\n  Il colore e' un discriminatore forte, valuta di "
-          "compilarla.")
+    print("\nNo 'colori' section in the mapping: all parts will have "
+          'random colours.\n  Colour is a useful feature; consider '
+          'filling it in.')
 
 os.makedirs(args.output, exist_ok=True)
 with open(os.path.join(args.output, "classi.json"), "w") as f:
@@ -213,9 +213,9 @@ materiali_cc = []
 if args.cc_textures and os.path.isdir(args.cc_textures):
     materiali_cc = bproc.loader.load_ccmaterials(args.cc_textures)
 if not materiali_cc:
-    print("Nessuna texture CC caricata: quando non uso una foto reale, il "
-          "piano avra' un colore piatto random.\n  Va bene se hai gli sfondi "
-          "reali: quelli coprono la maggior parte delle scene.")
+    print('No CC textures loaded: when a real photograph is not used, the '
+          'plane will use a random flat colour.\n  Real backgrounds '
+          'cover most scenes when available.')
 
 
 sfondi_reali = []
@@ -224,27 +224,27 @@ if args.sfondi_reali and os.path.isdir(args.sfondi_reali):
                   if f.lower().endswith((".png", ".jpg", ".jpeg")))
     for i, f in enumerate(foto):
         sfondi_reali.append(
-            bproc.material.create_material_from_texture(f, f"sfondo_reale_{i}")
+            bproc.material.create_material_from_texture(f, f"real_background_{i}")
         )
-    print(f"{len(sfondi_reali)} sfondi reali caricati da {args.sfondi_reali}")
+    print(f"{len(sfondi_reali)} real backgrounds loaded from {args.sfondi_reali}")
 else:
-    print("Nessuno sfondo reale: uso solo texture CC. "
-          "Consigliato: lancia prima cattura_sfondi.py")
+    print('No real backgrounds: using CC textures only. '
+          'Run cattura_sfondi.py first to capture backgrounds.')
 
 hdri = [f for f in glob.glob(os.path.join(args.hdri_dir, "**", "*"), recursive=True)
         if f.lower().endswith((".hdr", ".exr"))]
 if not hdri:
     raise SystemExit(
-        f"Nessun HDRI in {args.hdri_dir}. "
-        "Lancia: blenderproc download haven assets/haven"
+        f"No HDRI in {args.hdri_dir}. "
+        'Run: blenderproc download haven assets/haven'
     )
-print(f"\n{len(materiali_cc)} materiali CC, {len(hdri)} HDRI disponibili.")
+print(f"\n{len(materiali_cc)} CC materials, {len(hdri)} HDRIs available.")
 
 
 distrattori = []
 for i, forma in enumerate(["CUBE", "CYLINDER", "CONE", "SPHERE", "MONKEY"]):
     d = bproc.object.create_primitive(forma)
-    d.set_name(f"distrattore_{i}")
+    d.set_name(f"distractor_{i}")
     d.set_cp("category_id", 0)
     d.hide(True)
     distrattori.append(d)
@@ -259,7 +259,7 @@ with open(args.mappa_classi) as f:
 if _cfg_mano:
     _path_mano = os.path.join(args.stl_dir, _cfg_mano["file"])
     if not os.path.exists(_path_mano):
-        raise SystemExit(f"Mano non trovata: {_path_mano}")
+        raise SystemExit(f"Hand mesh not found: {_path_mano}")
     mano = bproc.loader.load_obj(_path_mano)[0]
     _scala_m = args.scala_mano if args.scala_mano is not None else args.scala_cad
     mano.set_scale([_scala_m] * 3)
@@ -270,7 +270,7 @@ if _cfg_mano:
     try:
         mano.persist_transformation_into_mesh(location=False, rotation=False, scale=True)
     except RuntimeError as e:
-        print(f"  (scala mano non fusa: {e} - proseguo)")
+        print(f"  (hand scale not applied: {e} - continuing)")
     mano.set_origin(mode="CENTER_OF_VOLUME")
     mano.set_cp("category_id", classi[_cfg_mano["classe"]])
     mano.set_name("mano")
@@ -284,7 +284,7 @@ if _cfg_mano:
     _mat_mano.set_principled_shader_value("Roughness", 0.55)
     mano.hide(True)
     _bb = mano.get_bound_box()
-    print(f"  Mano -> classe {_cfg_mano['classe']}, ingombro "
+    print(f"  Hand -> class {_cfg_mano['classe']}, dimensions "
           f"{np.ptp(_bb[:, 0])*1000:.0f} x {np.ptp(_bb[:, 1])*1000:.0f} mm")
 
 
@@ -348,7 +348,7 @@ def randomizza_materiale(obj):
 
 
         if cat not in _classi_senza_colore_note:
-            print(f"  ! classe id {cat} senza colore: controlla parts_catalog / mappa")
+            print(f"  ! class ID {cat} has no colour: check parts_catalog / mapping")
         g = np.random.uniform(0.3, 0.7)
         col = np.array([g, g, g])
 
@@ -415,12 +415,12 @@ for scena in range(args.scene):
 
 
     regime = random.choices(
-        ["sparso", "medio", "ammucchiato"], weights=[0.3, 0.45, 0.25]
+        ['sparse', 'medium', 'crowded'], weights=[0.3, 0.45, 0.25]
     )[0]
     frazione_raggio, n_min, n_max = {
-        "sparso":      (1.00, args.pezzi_min, max(args.pezzi_min, args.pezzi_max // 2)),
-        "medio":       (0.65, args.pezzi_max // 2, args.pezzi_max),
-        "ammucchiato": (0.32, args.pezzi_max // 2, args.pezzi_max),
+        'sparse':      (1.00, args.pezzi_min, max(args.pezzi_min, args.pezzi_max // 2)),
+        'medium':       (0.65, args.pezzi_max // 2, args.pezzi_max),
+        'crowded': (0.32, args.pezzi_max // 2, args.pezzi_max),
     }[regime]
     raggio_x = RAGGIO_X * frazione_raggio
     raggio_y = RAGGIO_Y * frazione_raggio
@@ -448,7 +448,7 @@ for scena in range(args.scene):
             np.random.uniform(-raggio_y, raggio_y),
 
 
-            np.random.uniform(0.02, 0.30 if regime == "ammucchiato" else 0.12),
+            np.random.uniform(0.02, 0.30 if regime == 'crowded' else 0.12),
         ])
         obj.set_rotation_euler(bproc.sampler.uniformSO3())
 
@@ -491,7 +491,7 @@ for scena in range(args.scene):
 
     if (scena + 1) % 25 == 0:
         print(f"[{scena+1}/{args.scene}] "
-              f"{(scena+1)*args.viste_per_scena} immagini generate")
+              f"{(scena+1)*args.viste_per_scena} images generated")
 
 
 def pulisci_coco(cartella):
@@ -531,21 +531,21 @@ def pulisci_coco(cartella):
         nome = id2nome.get(a["category_id"], str(a["category_id"]))
         conteggi[nome] = conteggi.get(nome, 0) + 1
 
-    print(f"\n{cartella}: {len(d['images'])} immagini, {len(tenute)} istanze "
-          f"({prima - len(tenute)} scartate perche' occluse o di sfondo)")
+    print(f"\n{cartella}: {len(d['images'])} images, {len(tenute)} instances "
+          f"({prima - len(tenute)} removed as occluded/background)")
     if conteggi:
         vals = sorted(conteggi.values())
-        print(f"  istanze per classe: min {vals[0]}, mediana "
+        print(f"  instances per class: min {vals[0]}, median "
               f"{vals[len(vals)//2]}, max {vals[-1]}")
         soglia = 0.5 * vals[len(vals) // 2]
         scarse = [k for k, v in conteggi.items() if v < soglia]
         if scarse:
             nomi_scarse = sorted(str(id2nome.get(k, k)) for k in scarse)
-            print(f"  classi sotto-rappresentate: {', '.join(nomi_scarse)}")
+            print(f"  under-represented classes: {', '.join(nomi_scarse)}")
 
 
 for c in (dir_train, dir_val):
     pulisci_coco(c)
 
-print("\nFatto. Ricorda: il val sintetico serve solo a controllare che il "
-      "training converga.\nIl mAP che conta si misura su immagini REALI.")
+print('\nDone. Synthetic validation checks training convergence. '
+      '\nReal-world mAP must be measured on REAL images.')

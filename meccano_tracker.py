@@ -1,10 +1,4 @@
-"""Meccano: riconoscimento, composizione e assistenza senza raccolta dati.
-
-G / SPAZIO = avvia; V = verifica; N = cambia (solo a destra libero);
-R = domanda vocale; S = stop voce; X = concludi/azzera; Q / ESC = esci.
-Tracking visibile su tutti i pezzi in ogni fase, anche durante la verifica.
-Fix piano destro: filtro dei candidati grezzi, diagnostica visibile, messaggi attuali.
-"""
+'Meccano: recognition, composition and voice assistance without experimental logging.\n\nG / SPACE = start; V = check parts; N = change (right area must be clear);\nR = voice query; S = stop voice; X = finish/reset; Q / ESC = exit.\nTracking boxes remain visible throughout the task.\nRight-area checking uses filtered raw candidates and visible diagnostics.\n'
 import argparse
 import os
 import time
@@ -157,8 +151,8 @@ class ClassStabilizer:
         g = self.ghosts.pop(best)
         if g["locked_class"] is not None:
             self.locked[new_tid] = g["locked_class"]
-            print(f"[INHERIT] new_tid={new_tid} eredita lock "
-                  f"{class_names[g['locked_class']]} da ghost tid={best} "
+            print(f"[INHERIT] new_tid={new_tid} inherits lock "
+                  f"{class_names[g['locked_class']]} from ghost tid={best} "
                   f"(dist={best_d:.0f}px, age={g['age']})")
             return True
 
@@ -234,18 +228,18 @@ def box_plausibile(x1, y1, x2, y2, frame_w, frame_h):
 
     w, h = x2 - x1, y2 - y1
     if w <= 0 or h <= 0:
-        return False, "degenere"
+        return False, 'degenerate'
     if w < BOX_MIN_SIDE_PX or h < BOX_MIN_SIDE_PX:
-        return False, f"troppo piccolo ({w}x{h}px)"
+        return False, f"too small ({w}x{h}px)"
     if w > frame_w * BOX_MAX_W_FRAC:
-        return False, f"troppo largo ({w}px > {frame_w*BOX_MAX_W_FRAC:.0f})"
+        return False, f"too wide ({w}px > {frame_w*BOX_MAX_W_FRAC:.0f})"
     if h > frame_h * BOX_MAX_H_FRAC:
-        return False, f"troppo alto ({h}px > {frame_h*BOX_MAX_H_FRAC:.0f})"
+        return False, f"too tall ({h}px > {frame_h*BOX_MAX_H_FRAC:.0f})"
     if (w * h) > (frame_w * frame_h * BOX_MAX_AREA_FRAC):
-        return False, f"area eccessiva ({w*h}px2)"
+        return False, f"excessive area ({w*h}px2)"
     lato_lungo, lato_corto = max(w, h), min(w, h)
     if lato_corto > 0 and lato_lungo / lato_corto > BOX_MAX_ASPECT:
-        return False, f"proporzioni impossibili ({lato_lungo/lato_corto:.1f}:1)"
+        return False, f"implausible proportions ({lato_lungo/lato_corto:.1f}:1)"
     return True, ""
 
 
@@ -325,7 +319,7 @@ def workspace_observations(raw_detections, tracked_detections, names,
     if min_raw_conf is None:
         min_raw_conf = WORKSPACE_MIN_RAW_CONF
     if not 0 <= min_raw_conf <= 1:
-        raise ValueError("Confidenza del controllo area non valida.")
+        raise ValueError('Invalid area-check confidence threshold.')
     if raw_detections is None:
         return None, []
     if frame_w <= 0 or frame_h <= 0:
@@ -340,16 +334,16 @@ def workspace_observations(raw_detections, tracked_detections, names,
         try:
             box = tuple(float(v) for v in detection["bbox"])
             if len(box) != 4 or not all(np.isfinite(v) for v in box):
-                raise ValueError("box non finito")
+                raise ValueError('non-finite box')
             x1, y1, x2, y2 = box
         except (KeyError, TypeError, ValueError, OverflowError):
-            reject(detection, "coordinate non valide")
+            reject(detection, 'invalid coordinates')
             return None
         if x2 <= x1 or y2 <= y1:
-            reject(detection, "riquadro degenere")
+            reject(detection, 'degenerate box')
             return None
         if x2 <= 0 or y2 <= 0 or x1 >= frame_w or y1 >= frame_h:
-            reject(detection, "fuori immagine")
+            reject(detection, 'outside the image')
             return None
         clipped = (max(0.0, x1), max(0.0, y1),
                    min(float(frame_w), x2), min(float(frame_h), y2))
@@ -382,7 +376,7 @@ def workspace_observations(raw_detections, tracked_detections, names,
         code = str(detection.get("class_name", "")).strip()
         detection["class_name"] = code
         if not code:
-            reject(detection, "classe assente")
+            reject(detection, 'missing class')
             continue
         box = geometry(detection)
         if box is None:
@@ -390,13 +384,13 @@ def workspace_observations(raw_detections, tracked_detections, names,
         try:
             confidence = float(detection["conf"])
             if not np.isfinite(confidence) or not 0 <= confidence <= 1:
-                raise ValueError("confidenza non valida")
+                raise ValueError('invalid confidence')
         except (KeyError, TypeError, ValueError, OverflowError):
-            reject(detection, "confidenza non valida")
+            reject(detection, 'invalid confidence')
             continue
         if confidence < min_raw_conf:
 
-            reject(detection, "confidenza bassa")
+            reject(detection, 'low confidence')
             continue
         detection.update(bbox=box, conf=confidence, source="detector")
         detection.pop("tid", None)
@@ -461,15 +455,15 @@ def stop_voice(voice, controller):
     controller.silence_return_announcement()
     if voice is not None:
         voice.stop()
-        controller.message = "Voce interrotta. Tracking e avviso scritto restano attivi."
+        controller.message = 'Voice stopped. Tracking and the written warning remain active.'
     else:
-        controller.message = "Voce non disponibile. Tracking e avviso scritto restano attivi."
+        controller.message = 'Voice unavailable. Tracking and the written warning remain active.'
 
 
 def dispatch_return_notice(controller, voice):
     speech = controller.take_return_announcement()
     if speech:
-        print("[AVVISO] " + speech)
+        print('[WARNING] ' + speech)
         if voice is not None:
 
             voice.say_async(speech, interrupt=True, tag="return_parts")
@@ -487,7 +481,7 @@ def _arguments():
     parser.add_argument("--silhouettes", default=os.environ.get(
         "MECCANO_SILHOUETTES_DIR", str(local_sil) if local_sil.is_dir() else DEFAULT_SILHOUETTES_DIR))
     parser.add_argument("--tracker", default=os.environ.get("MECCANO_TRACKER_CFG", DEFAULT_TRACKER_CFG))
-    parser.add_argument("--no-voice", action="store_true", help="avvio senza componenti audio")
+    parser.add_argument("--no-voice", action="store_true", help='start without audio components')
     return parser.parse_args()
 
 
@@ -495,14 +489,14 @@ def main():
     global class_names, depth_scale
     args = _arguments()
     if not Path(args.model).is_file():
-        raise SystemExit(f"Modello non trovato: {args.model}\nUsa --model con il percorso del tuo best.pt.")
+        raise SystemExit(f"Model not found: {args.model}\nUse --model with the path to best.pt.")
     if not Path(args.silhouettes).is_dir():
-        raise SystemExit(f"Cartella silhouette non trovata: {args.silhouettes}\nUsa --silhouettes.")
+        raise SystemExit(f"Silhouette folder not found: {args.silhouettes}\nUse --silhouettes.")
     try:
         import pyrealsense2 as rs
         from ultralytics import YOLO
     except ImportError as exc:
-        raise SystemExit(f"Dipendenza mancante: {exc}. Usa l'ambiente Python del progetto.") from exc
+        raise SystemExit(f"Missing dependency: {exc}. Use the project Python environment.") from exc
 
     model = YOLO(args.model)
     names = model.names
@@ -551,11 +545,11 @@ def main():
                 voice = VoiceAssistant(scene, all_class_names=list(class_names.values()))
             except Exception as exc:
                 voice = None
-                print(f"[VOCE] Non disponibile: {exc}. I comandi visivi restano utilizzabili.")
-        print("\nG / SPAZIO: avvia | V: verifica | N: cambia | R: voce | S: stop voce | X: concludi | Q: esci")
-        print("[FIX PIANO DESTRO v1] Controllo area filtrato; tracking originale invariato.")
-        print("Il cambio e' consentito solo dopo conferma stabile del piano destro libero.")
-        print("Nessuna registrazione video, CSV, questionario o misura delle prestazioni.\n")
+                print(f"[VOICE] Unavailable: {exc}. Visual controls remain available.")
+        print('\nG / SPACE: start | V: check parts | N: change | R: voice | S: stop voice | X: finish | Q: exit')
+        print('[RIGHT AREA FIX v1] Filtered area check; original tracking retained.')
+        print('Layout changes require stable confirmation that the right-hand area is clear.')
+        print('No video recording, trial CSV, questionnaires or operator-performance measurements.\n')
         ui.open()
         actions = deque()
         last_camera = np.zeros((COLOR_HEIGHT, COLOR_WIDTH, 3), dtype=np.uint8)
@@ -575,7 +569,7 @@ def main():
                     controller.finish()
                 if "stop_voice" in queued:
                     stop_voice(voice, controller)
-                controller.message = "Camera non disponibile: avvio/cambio bloccati. Tracking in attesa di immagini."
+                controller.message = 'Camera unavailable: start/change blocked. Tracking is waiting for images.'
                 if scene is not None:
                     scene.sync_with_active(set())
                 cv2.imshow(WINDOW_NAME, ui.draw(last_camera, controller, voice))
@@ -668,26 +662,26 @@ def main():
                     break
                 if action in ("start", "change"):
                     result = controller.generate(change=action == "change")
-                    print("[COMPOSIZIONE] " + result.message)
+                    print('[COMPOSITION] ' + result.message)
                     if result.ok:
                         ui.scroll = 0
                 elif action == "finish":
                     result = controller.finish()
                     ui.scroll = 0
-                    print("[COMPOSIZIONE] " + result.message)
+                    print('[COMPOSITION] ' + result.message)
                 elif action == "stop_voice":
                     stop_voice(voice, controller)
                 elif action == "verify":
                     speech = controller.toggle_verification()
                     if speech:
-                        print("[VERIFICA] " + speech)
+                        print('[CHECK] ' + speech)
                         if voice is not None:
                             voice.say_async(speech)
                 elif action == "voice":
                     if voice is None:
-                        controller.message = "Voce non disponibile. La verifica visiva [V] resta attiva."
+                        controller.message = 'Voice unavailable. Visual part checking [V] remains active.'
                     elif not voice.trigger():
-                        controller.message = "Assistente vocale gia' occupato."
+                        controller.message = 'Voice assistant is already busy.'
             if quit_requested:
                 break
             dispatch_return_notice(controller, voice)

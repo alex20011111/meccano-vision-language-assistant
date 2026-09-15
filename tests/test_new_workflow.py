@@ -129,7 +129,7 @@ class NewWorkflowTests(Fixture):
         self.assertFalse(frames[9][2])
         for frame in (3,4,5,6,7,9,10):
             self.assertEqual({tid for f,tid,_ in result.rendered if f==frame},{1,2})
-        self.assertIn('Piano destro occupato',result.output)
+        self.assertIn('Right-hand area occupied',result.output)
         for kwargs in result.models[0].kwargs:
             self.assertTrue(kwargs['persist']);self.assertFalse(kwargs['save'])
 

@@ -9,7 +9,7 @@ INVENTORY_STABLE_FRAMES = 6
 RIGHT_CLEAR_FRAMES = 8
 RIGHT_CLEAR_SECONDS = 0.8
 MAX_OBSERVATION_GAP_SECONDS = 5.0
-RETURN_PARTS_MESSAGE = "RIPORTARE I PEZZI NEL PIANO DI PARTENZA"
+RETURN_PARTS_MESSAGE = 'RETURN THE PARTS TO THE STARTING AREA'
 
 
 def is_hand(code):
@@ -26,16 +26,16 @@ def box_iou(a, b):
 
 
 def format_counts(counts):
-    return ", ".join(f"{code} x{n}" for code, n in sorted(counts.items()) if n > 0) or "nessuno"
+    return ", ".join(f"{code} x{n}" for code, n in sorted(counts.items()) if n > 0) or 'none'
 
 
 def left_position(part, split_x, height):
 
-    horizontal = ("vicino al bordo sinistro" if part["cx"] < split_x / 3 else
-                  "vicino alla linea centrale" if part["cx"] > 2 * split_x / 3 else
-                  "nella fascia centrale")
-    vertical = ("in alto" if part["cy"] < height / 3 else
-                "in basso" if part["cy"] > 2 * height / 3 else "a mezza altezza")
+    horizontal = ('near the left edge' if part["cx"] < split_x / 3 else
+                  'near the centre line' if part["cx"] > 2 * split_x / 3 else
+                  'in the middle column')
+    vertical = ('near the top' if part["cy"] < height / 3 else
+                'near the bottom' if part["cy"] > 2 * height / 3 else 'at mid-height')
     return f"{vertical}, {horizontal}"
 
 
@@ -50,7 +50,7 @@ class EmptyAreaGuard:
     def __init__(self, min_frames=RIGHT_CLEAR_FRAMES, min_seconds=RIGHT_CLEAR_SECONDS,
                  max_gap=MAX_OBSERVATION_GAP_SECONDS):
         if min_frames < 1 or min_seconds < 0 or max_gap <= 0:
-            raise ValueError("Parametri del controllo di area vuota non validi.")
+            raise ValueError('Invalid empty-area check parameters.')
         self.min_frames = min_frames
         self.min_seconds = min_seconds
         self.max_gap = max_gap
@@ -83,7 +83,7 @@ class EmptyAreaGuard:
 class CompositionController:
     def __init__(self, guide, stable_frames=INVENTORY_STABLE_FRAMES, guard=None):
         if stable_frames < 1:
-            raise ValueError("stable_frames deve essere positivo.")
+            raise ValueError('stable_frames must be positive.')
         self.guide = guide
         self.guard = guard if guard is not None else EmptyAreaGuard()
         self.stable_frames = stable_frames
@@ -105,7 +105,7 @@ class CompositionController:
         self.return_warning_visible = False
         self._return_announcement_pending = False
         self._completion_seen = False
-        self.message = "Metti tutti i pezzi a sinistra e lascia libero il piano destro."
+        self.message = 'Place all parts on the left and clear the right-hand area.'
         self._now = 0.0
         self._rng = random.SystemRandom()
 
@@ -217,8 +217,8 @@ class CompositionController:
         if reason:
             self.message = self._readiness_message = reason
         else:
-            command = "[N] per cambiare composizione" if self.guide.generated else "[G] per avviare"
-            self.message = "Piano destro libero. Premi " + command + "."
+            command = '[N] to change the composition' if self.guide.generated else '[G] to start'
+            self.message = 'Right-hand area clear. Press ' + command + "."
             self._readiness_message = None
 
     @property
@@ -229,28 +229,28 @@ class CompositionController:
     def readiness_reason(self, now=None):
         now = time.monotonic() if now is None else now
         if not self.frame_valid:
-            return "Controllo visivo non disponibile: avvio e cambio bloccati."
+            return 'Visual check unavailable: start and change are blocked.'
         if self.guard.occupied:
             if not self.right_has_parts:
-                return "Mano nella zona di costruzione: allontanala per verificare il piano destro."
-            return "Piano destro occupato: togli tutti i pezzi, anche quelli fuori sagoma."
+                return 'Hand in the construction area: remove it to check clearance.'
+            return 'Right-hand area occupied: remove all parts, including those outside targets.'
         if not self.guard.ready(now):
-            return "Attendo conferma stabile che il piano destro sia libero."
+            return 'Waiting for stable confirmation that the right-hand area is clear.'
         if self.hand_visible:
-            return "Allontana le mani dal piano prima di generare la composizione."
+            return 'Remove hands from the work surface before generating a composition.'
         if not self.left_parts:
-            return "Nessun pezzo riconosciuto a sinistra."
+            return 'No parts recognised on the left.'
         if not self.inventory_ready:
-            return "Attendo che tutti i pezzi a sinistra siano riconosciuti e stabili."
+            return 'Waiting for all left-hand parts to be recognised and stable.'
         return ""
 
     def generate(self, change=False, now=None):
 
         now = time.monotonic() if now is None else now
         if self.guide.generated and not change:
-            return self._result(False, "Composizione gia' attiva: usa Cambia composizione [N].")
+            return self._result(False, 'A composition is already active: use Change composition [N].')
         if change and not self.guide.generated:
-            return self._result(False, "Prima avvia una composizione con [G].")
+            return self._result(False, 'Start a composition with [G] first.')
         reason = self.readiness_reason(now)
         if reason:
             result = self._result(False, reason)
@@ -262,15 +262,15 @@ class CompositionController:
             codes, self.plane_z_m, seed=self._rng.randrange(2 ** 31),
             ensure_different=change)
         if not success:
-            return self._result(False, self.guide.last_error or "Composizione non generata.")
+            return self._result(False, self.guide.last_error or 'Composition was not generated.')
         self.generation += 1
         self.verification_visible = False
         self.return_check_active = False
         self.return_warning_visible = False
         self._return_announcement_pending = False
         self._completion_seen = False
-        return self._result(True, f"Composizione {self.generation}: {len(codes)} sagome per "
-                           f"{len(codes)} pezzi riconosciuti a sinistra.")
+        return self._result(True, f"Composition {self.generation}: {len(codes)} silhouettes for "
+                           f"{len(codes)} parts recognised on the left.")
 
     def finish(self):
 
@@ -280,15 +280,15 @@ class CompositionController:
         self._completion_seen = False
         self.return_check_active = True
         self._update_return_warning()
-        return self._result(True, "Composizione conclusa. Tracking ancora attivo. "
-                            "Riporta i pezzi a sinistra prima del prossimo avvio [G].")
+        return self._result(True, 'Composition cleared. Tracking remains active. '
+                            'Return the parts to the left before starting again [G].')
 
     def check_completion(self):
 
         if self.guide.generated and self.guide.completed and not self._completion_seen:
             self._completion_seen = True
             self.return_check_active = True
-            self.message = "Composizione completata. [X] concludi; il tracking continua."
+            self.message = 'Composition completed. [X] to finish; tracking continues.'
         self._update_return_warning()
 
     def _update_return_warning(self):
@@ -325,13 +325,13 @@ class CompositionController:
 
     def toggle_verification(self):
         if not self.guide.generated:
-            self.message = "Prima avvia una composizione con [G]."
+            self.message = 'Start a composition with [G] first.'
             return None
         self.verification_visible = not self.verification_visible
         if not self.verification_visible:
-            self.message = "Verifica nascosta."
+            self.message = 'Part summary hidden.'
             return None
-        self.message = "Evidenziati SOLO i pezzi da prendere sul piano sinistro."
+        self.message = 'ONLY parts to pick up on the left are highlighted.'
         return self.verification_text()
 
     def report(self):
@@ -365,20 +365,20 @@ class CompositionController:
     def verification_text(self):
         report = self.report()
         if not report["total"]:
-            return "Non c'e' una composizione attiva."
-        lines = ["Pezzi della composizione: " + format_counts(report["required"]) + ".",
-                 f"Completati {report['done']} su {report['total']}."]
+            return 'No active composition.'
+        lines = ['Composition parts: ' + format_counts(report["required"]) + ".",
+                 f"Completed {report['done']} of {report['total']}."]
         if not report["remaining"]:
-            lines.append("La composizione e' completa. Nessun pezzo da cercare a sinistra.")
+            lines.append('The composition is complete. No parts to find on the left.')
             return " ".join(lines)
         for part in report["left_matches"]:
             code = part["class_name"]
-            lines.append(f"{code}, sul piano sinistro: " +
+            lines.append(f"{code}, on the left-hand surface: " +
                          left_position(part, self.guide.split_x, self.guide.H) + ".")
         if report["right_pending"]:
-            lines.append("Gia' a destra ma ancora da sistemare: " +
+            lines.append('Already on the right but not correctly placed: ' +
                          format_counts(report["right_pending"]) + ".")
         if report["unlocated"]:
-            lines.append("Non localizzati fra i pezzi riconosciuti: " +
+            lines.append('Not located among recognised parts: ' +
                          format_counts(report["unlocated"]) + ".")
         return " ".join(lines)

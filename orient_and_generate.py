@@ -9,7 +9,7 @@ try:
     from shapely.ops import unary_union
     from PIL import Image, ImageDraw
 except ImportError:
-    print("Mancano librerie. Esegui:  pip install trimesh numpy pillow shapely")
+    print('Missing packages. Run: pip install trimesh numpy pillow shapely')
     sys.exit(1)
 
 
@@ -122,21 +122,21 @@ def save_meta(meta):
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     if not os.path.isdir(STL_DIR):
-        print(f"ERRORE: cartella STL non trovata: {STL_DIR}")
+        print(f"ERROR: STL folder not found: {STL_DIR}")
         return
 
     stl_files = sorted(f for f in os.listdir(STL_DIR) if f.lower().endswith(".stl"))
     if not stl_files:
-        print(f"Nessun .stl in {STL_DIR}")
+        print(f"No .stl files in {STL_DIR}")
         return
 
     meta = load_meta()
-    print(f"Trovati {len(stl_files)} pezzi.\n")
-    print("Per ogni pezzo: genero la silhouette, tu guardi la PNG nella cartella")
+    print(f"Found {len(stl_files)} parts.\n")
+    print('For each part, inspect the generated silhouette PNG in')
     print(f"  {OUT_DIR}")
-    print("e decidi se va bene o come ruotarla nello spazio 3D.\n")
-    print("ASSI: X=inclina avanti/indietro, Y=inclina di lato, Z=gira piatto")
-    print("Per una ruota vista di taglio prova X=90 oppure Y=90.\n")
+    print('and accept it or specify a 3D rotation.\n')
+    print('AXES: X=tilt forwards/backwards, Y=tilt sideways, Z=rotate in the plane')
+    print('For an edge-on wheel, try X=90 or Y=90.\n')
 
     for fname in stl_files:
         code = os.path.splitext(fname)[0]
@@ -146,7 +146,7 @@ def main():
         while True:
             mask, mm_per_px, size_mm = generate_one(stl_path, ax, ay, az, PPMM)
             if mask is None:
-                print(f"[{code}] impossibile generare, salto.")
+                print(f"[{code}] could not generate silhouette; skipping.")
                 break
 
             img = mask_to_rgba(mask)
@@ -155,15 +155,15 @@ def main():
 
 
             frac = (mask > 0).sum() / mask.size
-            print(f"[{code}] generato con rotazione X={ax:.0f} Y={ay:.0f} Z={az:.0f}")
-            print(f"        dimensione {img.width}x{img.height}px, "
-                  f"pezzo ~{size_mm[0]:.1f}x{size_mm[1]:.1f}mm, riempimento {frac:.0%}")
-            print(f"        --> GUARDA il file {code}.png nella cartella silhouette")
+            print(f"[{code}] generated with rotation X={ax:.0f} Y={ay:.0f} Z={az:.0f}")
+            print(f"        image size {img.width}x{img.height}px, "
+                  f"part ~{size_mm[0]:.1f}x{size_mm[1]:.1f}mm, fill ratio {frac:.0%}")
+            print(f"        --> INSPECT file {code}.png in the silhouette folder")
 
-            scelta = input("        [Invio]=ok  |  X Y Z (gradi) per ruotare  |  's'=salta: ").strip()
+            scelta = input("        [Enter]=accept  |  X Y Z (degrees) to rotate  |  's'=skip: ").strip()
 
-            if scelta.lower() in ("s", "skip", "salta"):
-                print("        saltato.\n")
+            if scelta.lower() in ("s", "skip", 'skip'):
+                print('        Skipped.\n')
                 break
             if scelta == "":
 
@@ -174,7 +174,7 @@ def main():
                     "img_wh": [img.width, img.height],
                 }
                 save_meta(meta)
-                print(f"        OK, {code} confermato.\n")
+                print(f"        OK, {code} accepted.\n")
                 break
 
             parts = scelta.replace(",", " ").split()
@@ -186,12 +186,12 @@ def main():
                     ax, ay, az = vals[0], vals[1], 0
                 elif len(vals) >= 3:
                     ax, ay, az = vals[0], vals[1], vals[2]
-                print(f"        rigenero con X={ax} Y={ay} Z={az} ...")
+                print(f"        regenerating with X={ax} Y={ay} Z={az} ...")
             except ValueError:
-                print("        input non valido. Scrivi tre numeri (es. 90 0 0) "
-                      "oppure Invio per confermare.\n")
+                print('        Invalid input. Enter three numbers (e.g. 90 0 0) '
+                      'or press Enter to accept.\n')
 
-    print("Finito. Silhouette in:", OUT_DIR)
+    print('Done. Silhouettes in:', OUT_DIR)
 
 
 if __name__ == "__main__":

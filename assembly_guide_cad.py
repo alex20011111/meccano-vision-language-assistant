@@ -60,20 +60,20 @@ class SilhouetteLibrary:
     def _load_meta(self):
         meta_path = os.path.join(self.dir, "silhouettes_meta.json")
         if not os.path.exists(meta_path):
-            print(f"[SIL] ATTENZIONE: {meta_path} non trovato. "
-                  "Genera prima le silhouette con generate_silhouettes.py.")
+            print(f"[SIL] WARNING: {meta_path} not found. "
+                  'Generate the silhouettes first with generate_silhouettes.py.')
             return
         try:
             with open(meta_path, encoding="utf-8") as fp:
                 self.meta = json.load(fp)
             parts = self.meta.get("parts", {})
             if not isinstance(parts, dict):
-                raise ValueError("La voce 'parts' deve essere un oggetto JSON.")
+                raise ValueError("The 'parts' entry must be a JSON object.")
             self.meta["parts"] = {str(k).upper(): v for k, v in parts.items()}
         except (OSError, ValueError, AttributeError) as exc:
             self.meta = {}
-            print(f"[SIL] Metadati non validi: {exc}")
-        print(f"[SIL] Meta caricato: {len(self.meta.get('parts', {}))} silhouette disponibili.")
+            print(f"[SIL] Invalid metadata: {exc}")
+        print(f"[SIL] Metadata loaded: {len(self.meta.get('parts', {}))} silhouettes available.")
 
     def has(self, code):
         return code in self.meta.get("parts", {})
@@ -90,10 +90,10 @@ class SilhouetteLibrary:
         path = os.path.join(self.dir, info["png"])
         img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
         if img is None:
-            print(f"[SIL] impossibile leggere {path}")
+            print(f"[SIL] Cannot read {path}")
             return None
         if img.ndim != 3 or img.shape[2] != 4 or not np.any(img[..., 3]):
-            print(f"[SIL] PNG senza una sagoma BGRA valida: {path}")
+            print(f"[SIL] PNG has no valid BGRA silhouette: {path}")
             return None
         img = self._crop_transparent_border(img)
         self.images[code] = img
@@ -434,18 +434,18 @@ class CadAssemblyGuide:
         codes = [str(c).strip().upper() for c in part_classes]
         self.last_error = ""
         if not codes:
-            self.last_error = "Nessun pezzo riconosciuto nel piano sinistro."
+            self.last_error = 'No parts recognised in the left-hand area.'
             return False
         missing = sorted({c for c in codes if not self.can_render(c)})
         if missing:
-            self.last_error = "Silhouette assenti o non valide: " + ", ".join(missing)
+            self.last_error = 'Missing or invalid silhouettes: ' + ", ".join(missing)
             return False
         try:
             z = float(plane_z_m)
             if not math.isfinite(z) or z <= 0 or not math.isfinite(self.fx) or self.fx <= 0:
                 raise ValueError
         except (TypeError, ValueError):
-            self.last_error = "Profondita' del piano non valida: impossibile scalare le sagome."
+            self.last_error = 'Invalid work-surface depth: cannot scale the silhouettes.'
             return False
 
         fields = ("slots", "generated", "completed", "plane_z_mm", "_mask_cache",
@@ -454,7 +454,7 @@ class CadAssemblyGuide:
         previous_signature = self._layout_signature()
         rng = random.Random(seed)
         base = rng.randrange(10 ** 9)
-        reason = "Non riesco a disporre tutti i pezzi a destra senza sovrapposizioni."
+        reason = 'Cannot fit all parts on the right without overlap.'
         try:
             for attempt in range(22):
                 self._mask_cache = {}
@@ -463,7 +463,7 @@ class CadAssemblyGuide:
                                    compact=min(1.0, attempt / 6.0),
                                    layout_override="parallel" if attempt >= 4 else None)
                 if Counter(s.code for s in self.slots) != Counter(codes):
-                    reason = "Numero o tipo delle sagome non corrispondente ai pezzi a sinistra."
+                    reason = 'The number or types of silhouettes do not match the left-hand inventory.'
                     break
                 if not self._fit_into_assembly_area() or self._count_overlaps():
                     continue
@@ -471,7 +471,7 @@ class CadAssemblyGuide:
 
                 self._jitter_figure(rng)
                 if ensure_different and self._layout_signature() == previous_signature:
-                    reason = "Non e' stata trovata una disposizione diversa valida."
+                    reason = 'No valid alternative layout was found.'
                     continue
                 self.generated = True
                 self.completed = False
@@ -479,7 +479,7 @@ class CadAssemblyGuide:
                 self._print_final_report()
                 return True
         except Exception as exc:
-            reason = f"Generazione non riuscita: {exc}"
+            reason = f"Generation failed: {exc}"
 
         for name, value in previous.items():
             setattr(self, name, value)
@@ -516,12 +516,12 @@ class CadAssemblyGuide:
     def _print_final_report(self):
 
         info = getattr(self, "_fig_info", None)
-        print("[ASSEMBLY-CAD] --- modulo v7 (figura finale) ---")
+        print('[ASSEMBLY-CAD] --- module v7 (final layout) ---')
         if info:
-            print(f"[ASSEMBLY-CAD] Figura CONNESSA '{info['layout']}': "
-                  f"{info['n_struct']} piastre + {info['n_fast']} fissaggi.")
+            print(f"[ASSEMBLY-CAD] CONNECTED layout \'{info['layout']}': "
+                  f"{info['n_struct']} plates + {info['n_fast']} fasteners.")
         for s in self.slots:
-            print(f"  - slot {s.id}: {s.code} @ ({s.cx},{s.cy}) ang={s.angle:.0f}")
+            print(f"  - slot {s.id}: {s.code} @ ({s.cx},{s.cy}) angle={s.angle:.0f}")
         sovrapposte = []
         for i in range(len(self.slots)):
             for j in range(i + 1, len(self.slots)):
@@ -530,15 +530,15 @@ class CadAssemblyGuide:
                     sovrapposte.append(
                         f"{self.slots[i].code}+{self.slots[j].code}")
         if sovrapposte:
-            print(f"[ASSEMBLY-CAD] SOVRAPPOSTE ({len(sovrapposte)}): "
+            print(f"[ASSEMBLY-CAD] OVERLAPS ({len(sovrapposte)}): "
                   f"{', '.join(sovrapposte)}")
         else:
-            print("[ASSEMBLY-CAD] Nessuna sovrapposizione.")
+            print('[ASSEMBLY-CAD] No overlaps.')
         for c in getattr(self, "_fig_usable", []):
             L, W = self.part_size_mm(c)
             if L and W:
-                tipo = "PIASTRA " if self.is_structural(c) else "fissaggio"
-                print(f"     {c}: {tipo} {L:.0f}x{W:.0f}mm (rapporto {L/W:.1f})")
+                tipo = 'PLATE ' if self.is_structural(c) else 'fastener'
+                print(f"     {c}: {tipo} {L:.0f}x{W:.0f}mm (ratio {L/W:.1f})")
 
     def _build_figure(self, part_classes, plane_z_m, seed=None, compact=0.0,
                       layout_override=None):
@@ -919,10 +919,10 @@ class CadAssemblyGuide:
         cv2.line(img, (self.split_x, 0), (self.split_x, H), (200, 200, 200), 2)
 
         _y = H - 18
-        cv2.putText(img, "PARTENZA", (24, _y),
+        cv2.putText(img, 'STARTING AREA', (24, _y),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.62, (175, 175, 175), 1,
                     cv2.LINE_AA)
-        cv2.putText(img, "MONTAGGIO", (self.split_x + 24, _y),
+        cv2.putText(img, 'ASSEMBLY', (self.split_x + 24, _y),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.62, (175, 175, 175), 1,
                     cv2.LINE_AA)
 
@@ -959,9 +959,9 @@ class CadAssemblyGuide:
 
         done, total = self.progress()
         if total > 0 and show_progress:
-            txt = f"Montaggio: {done}/{total}"
+            txt = f"Assembly: {done}/{total}"
             if self.completed:
-                txt += "  COMPLETATO!"
+                txt += '  COMPLETED!'
             cv2.putText(img, txt, (self.split_x + 20, 80),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.0,
                         (0, 255, 0) if self.completed else (255, 255, 255), 2)

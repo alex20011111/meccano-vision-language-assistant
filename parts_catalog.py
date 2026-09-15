@@ -2,241 +2,241 @@ PARTS_CATALOG = {
 
     "A003": {
         "descrizione": (
-            "Piastra dritta rossa, lunga, piatta e longilinea, con TRE buchi "
-            "allineati e le estremita' arrotondate. Elemento strutturale per "
-            "telaio e struttura."
+            'Long, flat, straight RED plate with THREE aligned holes '
+            'and rounded ends. Structural component for '
+            'frames and supports.'
         ),
         "sinonimi": [
-            "barretta rossa", "piastra rossa dritta", "listello rosso",
-            "stecca rossa", "piastrina rossa a tre buchi", "barra rossa dritta",
-            "righello rosso", "linguetta rossa dritta",
+            'red strip', 'straight red plate', 'red slat',
+            'red stick', 'red three-hole plate', 'straight red bar',
+            'red ruler', 'straight red tab',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": 3,
     },
     "A004": {
         "descrizione": (
-            "Piastra dritta GRIGIA, lunga, piatta e longilinea, con QUATTRO "
-            "buchi allineati ed estremita' arrotondate. Come la A003 ma grigia "
-            "e con un buco in piu'. Elemento strutturale."
+            'Long, flat, straight GREY plate with FOUR '
+            'aligned holes and rounded ends. Similar to A003 but grey '
+            'and with one extra hole. Structural component.'
         ),
         "sinonimi": [
-            "barretta grigia", "piastra grigia dritta", "listello grigio",
-            "stecca grigia", "piastrina grigia a quattro buchi",
-            "barra grigia dritta", "righello grigio", "linguetta grigia dritta",
+            'grey strip', 'straight grey plate', 'grey slat',
+            'grey stick', 'grey four-hole plate',
+            'straight grey bar', 'grey ruler', 'straight grey tab',
         ],
-        "colore": "grigio",
+        "colore": 'grey',
         "buchi": 4,
     },
 
 
     "A632": {
         "descrizione": (
-            "Piastra piatta piegata a GOMITO (angolo, forma a L o a V) con "
-            "buchi. Puo' essere grigia/bianca (quattro buchi) "
-            "(tre buchi): nel modello entrambe le varianti sono la classe A632."
+            'Flat ELBOW plate (angled, L- or V-shaped) with '
+            'holes. It may be grey/white (four holes) '
+            '(three holes): the model entry groups both variants as A632.'
         ),
         "sinonimi": [
-            "angolo grigio", "angolo bianco", "gomito grigio", "gomito bianco",
-            "piastra grigia a L", "squadretta grigia", "squadretta bianca",
-            "elle grigia", "elle bianca", "angolare grigio", "angolare bianco",
-            "pezzo grigio a gomito", "pezzo bianco a gomito", "piastra bianca curva"
+            'grey corner', 'white corner', 'grey elbow', 'white elbow',
+            'grey L-shaped plate', 'grey bracket', 'white bracket',
+            'grey L piece', 'white L piece', 'grey angle bracket', 'white angle bracket',
+            'grey elbow piece', 'white elbow piece', 'curved white plate'
 
         ],
-        "colore": "grigio, bianco",
+        "colore": 'grey, white',
         "buchi": 4,
     },
 
     "A622": {
         "descrizione": (
-            "Pezzo ROSSO [FORMA], con [N] fori. [Eventuale dettaglio "
-            "distintivo]. Elemento strutturale del kit."
+            'RED [SHAPE] component with [N] holes. [Optional distinguishing '
+            'detail]. Structural kit component.'
         ),
         "sinonimi": [
-            "pezzo rosso [forma]", "[nome colloquiale]",
+            'red [shape] piece', '[common name]',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
 
 
     "B823": {
         "descrizione": (
-            "Pezzo ROSSO storto e squadrato, tipo carena della moto, con CINQUE "
-            "buchi. Elemento di congiunzione dalla forma irregolare/quadrata."
+            'Irregular, squared RED motorcycle fairing with FIVE '
+            'holes. Irregular/squared connecting component.'
         ),
         "sinonimi": [
-            "carena rossa grande", "carena moto rossa", "pezzo rosso storto grande",
-            "pezzo rosso quadrato storto", "sagoma rossa a cinque buchi",
-            "piastra rossa sagomata grande", "carenatura rossa",
+            'large red fairing', 'red motorcycle fairing', 'large irregular red piece',
+            'irregular square red piece', 'red five-hole shape',
+            'large shaped red plate', 'red body panel',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": 5,
     },
     "B577": {
         "descrizione": (
-            "Pezzo ROSSO storto tipo carena della moto, con TRE buchi. Come la "
-            "B823 ma piu' piccolo e con meno buchi. Forma irregolare/curva."
+            'Irregular RED motorcycle fairing with THREE holes. Similar to '
+            'B823 but smaller and with fewer holes. Irregular/curved shape.'
         ),
         "sinonimi": [
-            "carena rossa piccola", "carena moto rossa piccola",
-            "pezzo rosso storto piccolo", "sagoma rossa a tre buchi",
-            "piastra rossa sagomata piccola", "carenatura rossa piccola",
+            'small red fairing', 'small red motorcycle fairing',
+            'small irregular red piece', 'red three-hole shape',
+            'small shaped red plate', 'small red body panel',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": 3,
     },
 
 
     "A132": {
         "descrizione": (
-            "Perno ROSSO (spinotto/connettore). NON e' una vite: non ha "
-            "filettatura. Serve a incastrare i pezzi."
+            'RED pin/connector. NOT a screw: it has no '
+            'thread. Used to connect parts by insertion.'
         ),
         "sinonimi": [
-            "perno rosso", "spinotto rosso", "connettore rosso", "spina rossa",
-            "pioletto rosso", "innesto rosso", "chiodino rosso senza filetto",
+            'red pin', 'red dowel', 'red connector', 'red peg',
+            'red little pin', 'red insert', 'small unthreaded red pin',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
     "A050": {
         "descrizione": (
-            "Perno ROSSO di forma OVALE (allungata, ellittica). NON e' una vite. "
-            "Un perno con la testa a ovale."
+            'RED OVAL pin with an elongated, elliptical head. NOT a screw. '
+            'A pin with an oval head.'
         ),
         "sinonimi": [
-            "perno ovale rosso", "spinotto ovale rosso", "perno rosso a oliva",
-            "connettore ovale rosso", "perno rosso allungato", "ovetto rosso",
+            'red oval pin', 'red oval dowel', 'olive-shaped red pin',
+            'red oval connector', 'elongated red pin', 'red egg-shaped piece',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
     "A306": {
         "descrizione": (
-            "Pezzo ROSSO lungo con SCANALATURE interne (righe/solchi lungo il "
-            "corpo). NON e' una vite. Corpo allungato scanalato."
+            'Long RED part with internal GROOVES along '
+            'its body. NOT a screw. Elongated grooved body.'
         ),
         "sinonimi": [
-            "pezzo rosso scanalato", "cilindro rosso rigato", "perno rosso lungo scanalato",
-            "corpo rosso con solchi", "tubo rosso scanalato", "pezzo rosso rigato lungo",
+            'grooved red piece', 'ridged red cylinder', 'long grooved red pin',
+            'red body with grooves', 'grooved red tube', 'long ridged red piece',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
 
 
     "A054": {
         "descrizione": (
-            "Vite ROSSA LUNGA, con filettatura. La vite piu' lunga del kit."
+            'LONG RED threaded screw. The longest screw in the kit.'
         ),
         "sinonimi": [
-            "vite lunga rossa", "vite rossa grande", "bullone lungo rosso",
-            "vitone rosso", "vite rossa filettata lunga",
+            'long red screw', 'large red screw', 'long red bolt',
+            'big red screw', 'long threaded red screw',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
     "A051": {
         "descrizione": (
-            "Vite ROSSA PICCOLA (corta), con filettatura. La vite corta del kit."
+            'SHORT RED threaded screw. The short screw in the kit.'
         ),
         "sinonimi": [
-            "vite corta rossa", "vite rossa piccola", "bullone corto rosso",
-            "vitina rossa", "vite rossa filettata corta",
+            'short red screw', 'small red screw', 'short red bolt',
+            'little red screw', 'short threaded red screw',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
 
 
     "A045": {
         "descrizione": (
-            "Ruota NERA grande, il pneumatico/gomma della ruota."
+            'Large BLACK tyre, the rubber outer part of the wheel.'
         ),
         "sinonimi": [
-            "ruota nera", "gomma nera", "pneumatico nero", "copertone nero",
-            "ruota grande nera", "gommone nero",
+            'black wheel', 'black rubber tyre', 'black tyre', 'black tire',
+            'large black wheel', 'large black tyre',
         ],
-        "colore": "nero",
+        "colore": 'black',
         "buchi": None,
     },
     "A046": {
         "descrizione": (
-            "Cerchione GRIGIO, il mozzo/cerchio interno della ruota su cui va "
-            "montata la gomma."
+            'GREY wheel rim or hub, the inner wheel component onto which '
+            'the tyre is fitted.'
         ),
         "sinonimi": [
-            "cerchione grigio", "cerchio grigio", "mozzo grigio", "cerchione ruota",
-            "cerchio interno grigio", "razze grigie",
+            'grey wheel rim', 'grey rim', 'grey hub', 'wheel rim',
+            'grey inner rim', 'grey spokes',
         ],
-        "colore": "grigio",
+        "colore": 'grey',
         "buchi": None,
     },
 
 
     "A053": {
         "descrizione": (
-            "Bloccaggio ROSSO di GOMMA (fermo morbido, gommino). Elemento di "
-            "fissaggio in gomma."
+            'RED RUBBER retainer, a soft rubber ring. Rubber '
+            'fastening component.'
         ),
         "sinonimi": [
-            "gommino rosso", "fermo rosso di gomma", "bloccaggio gomma rosso",
-            "tappo rosso di gomma", "anello rosso di gomma", "guarnizione rossa",
+            'red rubber ring', 'red rubber stop', 'red rubber retainer',
+            'red rubber cap', 'red rubber retaining ring', 'red gasket',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
     "A057": {
         "descrizione": (
-            "Bloccaggio ruota ROSSO CON scanalatura interna (solco/gola "
-            "all'interno del foro). Fermo ad anello con gola interna."
+            'RED wheel retainer WITH an internal groove '
+            'inside the hole. Grooved retaining ring.'
         ),
         "sinonimi": [
-            "fermo ruota rosso scanalato", "bloccaggio rosso con gola",
-            "anello rosso con solco interno", "rondella rossa scanalata",
-            "fermaruota rosso rigato", "boccola rossa scanalata",
+            'grooved red wheel retainer', 'red retainer with a groove',
+            'red ring with an internal groove', 'grooved red washer',
+            'ridged red wheel retainer', 'grooved red bushing',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
     "A077": {
         "descrizione": (
-            "Bloccaggio ruota ROSSO SENZA scanalature interne (foro liscio "
-            "all'interno). Fermo ad anello liscio, senza gola interna. "
-            "Simile alla A057 ma senza il solco interno."
+            'RED wheel retainer WITHOUT an internal groove, with a smooth '
+            'bore. Smooth retaining ring without a groove. '
+            'Similar to A057 but without the internal groove.'
         ),
         "sinonimi": [
-            "fermo ruota rosso liscio", "bloccaggio rosso liscio",
-            "anello rosso liscio", "rondella rossa liscia", "fermaruota rosso liscio",
-            "boccola rossa liscia",
+            'smooth red wheel retainer', 'smooth red retainer',
+            'smooth red ring', 'smooth red washer', 'smooth red wheel stop',
+            'smooth red bushing',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
 
 
     "C658": {
         "descrizione": (
-            "Dado ROSSO (esagonale, con foro filettato al centro). Si avvita "
-            "sulle viti."
+            'RED hexagonal nut with a threaded central hole. Fits '
+            'onto screws.'
         ),
         "sinonimi": [
-            "dado rosso", "bullone rosso esagonale", "dadino rosso", "esagono rosso",
-            "madrevite rossa", "galletto rosso",
+            'red nut', 'red hexagonal bolt', 'small red nut', 'red hexagon',
+            'red threaded nut', 'red wing nut',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
     "A545": {
         "descrizione": (
-            "Cilindretto (piccolo cilindro/distanziale). Corpo cilindrico corto."
+            'Small cylinder/spacer. Short cylindrical body.'
         ),
         "sinonimi": [
-            "cilindretto", "distanziale", "tubetto", "rullino", "cilindro piccolo",
-            "boccola cilindrica", "spessore cilindrico",
+            'small cylinder', 'spacer', 'small tube', 'roller', 'small cylinder',
+            'cylindrical bushing', 'cylindrical spacer',
         ],
-        "colore": "rosso",
+        "colore": 'red',
         "buchi": None,
     },
 }
@@ -250,10 +250,10 @@ def build_catalog_text(only_classes=None):
         if only_classes is not None and code not in only_classes:
             continue
         syn = ", ".join(info["sinonimi"])
-        buchi = f", {info['buchi']} buchi" if info.get("buchi") else ""
+        buchi = f", {info['buchi']} holes" if info.get("buchi") else ""
         lines.append(
             f"- {code}: {info['descrizione']} "
-            f"(colore: {info['colore']}{buchi}). "
-            f"Altri modi di chiamarlo: {syn}."
+            f"(colour: {info['colore']}{buchi}). "
+            f"Alternative names: {syn}."
         )
     return "\n".join(lines)

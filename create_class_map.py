@@ -18,8 +18,8 @@ def leggi_nomi(path):
         from ultralytics import YOLO
         names = YOLO(path).names
     except Exception as e:
-        print(f"  (ultralytics non ha caricato il modello: {e})")
-        print("  provo a leggere il checkpoint direttamente...")
+        print(f"  (ultralytics could not load the model: {e})")
+        print('  Trying to read the checkpoint directly...')
         import torch
         ck = torch.load(path, map_location="cpu", weights_only=False)
         names = ck["model"].names
@@ -39,13 +39,13 @@ def abbina(stem, classi):
 
 
 COLORI_RGB = {
-    "rosso":  [0.70, 0.08, 0.08],
-    "grigio": [0.16, 0.16, 0.17],
-    "bianco": [0.90, 0.90, 0.88],
-    "nero":   [0.05, 0.05, 0.06],
-    "giallo": [0.95, 0.70, 0.05],
-    "blu":    [0.10, 0.25, 0.70],
-    "verde":  [0.10, 0.45, 0.15],
+    'red':  [0.70, 0.08, 0.08],
+    'grey': [0.16, 0.16, 0.17],
+    'white': [0.90, 0.90, 0.88],
+    'black':   [0.05, 0.05, 0.06],
+    'yellow': [0.95, 0.70, 0.05],
+    'blue':    [0.10, 0.25, 0.70],
+    'green':  [0.10, 0.45, 0.15],
 }
 
 
@@ -55,8 +55,8 @@ def leggi_colori(classi):
     try:
         from parts_catalog import PARTS_CATALOG
     except ImportError:
-        print("\n  parts_catalog.py non trovato: sezione colori vuota.")
-        print("  Compilala a mano se vuoi il colore per classe.")
+        print('\n  parts_catalog.py not found: empty colour section.')
+        print('  Fill it in to specify colours for each class.')
         return {}
 
     colori = {}
@@ -74,19 +74,19 @@ def leggi_colori(classi):
 
 def main():
     if not os.path.exists(MODELLO):
-        raise SystemExit(f"Modello non trovato:\n  {MODELLO}")
+        raise SystemExit(f"Model not found:\n  {MODELLO}")
     if not os.path.isdir(STL_DIR):
-        raise SystemExit(f"Cartella STL non trovata:\n  {STL_DIR}")
+        raise SystemExit(f"STL folder not found:\n  {STL_DIR}")
 
-    print(f"Leggo le classi da:\n  {MODELLO}\n")
+    print(f"Reading classes from:\n  {MODELLO}\n")
     nomi = leggi_nomi(MODELLO)
 
-    print(f"{len(nomi)} classi, nell'ordine del modello:")
+    print(f"{len(nomi)} classes in model order:")
     for i, n in enumerate(nomi):
         print(f"  {i:>2}: {n}")
 
     stl_files = sorted(f for f in os.listdir(STL_DIR) if f.lower().endswith(".stl"))
-    print(f"\n{len(stl_files)} file STL in:\n  {STL_DIR}\n")
+    print(f"\n{len(stl_files)} STL files in:\n  {STL_DIR}\n")
 
     mappa_stl, cfg_mano, orfani = {}, None, []
 
@@ -119,19 +119,19 @@ def main():
 
 
     print("=" * 62)
-    print("ABBINAMENTI")
+    print('MATCHES')
     for f, c in sorted(mappa_stl.items(), key=lambda kv: kv[1]):
         segno = "=" if os.path.splitext(f)[0].upper() == c.upper() else "~"
         print(f"  {f:<26} {segno}> {c}")
     if cfg_mano:
-        print(f"  {cfg_mano['file']:<26} => {cfg_mano['classe']}  (sezione mano)")
+        print(f"  {cfg_mano['file']:<26} => {cfg_mano['classe']}  (hand section)")
 
     doppie = {}
     for f, c in mappa_stl.items():
         doppie.setdefault(c, []).append(f)
     multi = {c: fs for c, fs in doppie.items() if len(fs) > 1}
     if multi:
-        print("\nCLASSI CON PIU' DI UN FILE STL:")
+        print('\nCLASSES WITH MULTIPLE STL FILES:')
         for c, fs in multi.items():
             print(f"  {c}: {', '.join(fs)}")
 
@@ -139,38 +139,38 @@ def main():
 
     if colori:
         nomi_rgb = {tuple(v): k for k, v in COLORI_RGB.items()}
-        print("\nCOLORI (da parts_catalog.py):")
+        print('\nCOLOURS (from parts_catalog.py):')
         for c in nomi:
             if c in colori:
                 elenco = ", ".join(nomi_rgb.get(tuple(rgb), "?") for rgb in colori[c])
                 print(f"  {c:<8} {elenco}")
         senza = [c for c in nomi if c not in colori and c in coperte]
         if senza:
-            print(f"  senza colore: {', '.join(senza)} -> useranno la palette casuale")
+            print(f"  missing colour: {', '.join(senza)} -> will use the random palette")
 
     scoperte = [n for n in nomi if n not in coperte]
     if scoperte:
-        print(f"\nCLASSI SENZA STL ({len(scoperte)}):")
+        print(f"\nCLASSES WITHOUT STL ({len(scoperte)}):")
         print(f"  {', '.join(scoperte)}")
-        print("  Non compariranno nel sintetico. Se e' un errore di nome file,")
-        print("  rinomina l'STL; se il pezzo non ha CAD, deve venire dal reale.")
+        print('  These classes will not appear in synthetic scenes. For incorrect filenames,')
+        print('  rename the STL; parts without CAD must come from real images.')
 
     if orfani:
-        print(f"\nSTL NON ABBINATI ({len(orfani)}):")
+        print(f"\nUNMATCHED STLS ({len(orfani)}):")
         for f in orfani:
             print(f"  {f}")
-        print("  Se sono varianti di una classe, rinominali CLASSE_variante.stl")
-        print("  (es. A632_rosso.stl) e rilancia.")
+        print('  For class variants, use CLASS_variant.stl')
+        print('  (e.g. A632_red.stl) and run again.')
 
     print("\n" + "=" * 62)
-    print("FILE PRODOTTO:")
+    print('OUTPUT FILE:')
     print(f"  {OUT}")
     if scoperte or orfani:
-        print("\nSistema i punti sopra e rilancia, oppure correggi il JSON a mano.")
+        print('\nResolve the issues above and run again, or edit the JSON manually.')
     else:
-        print("\nTutto abbinato. Puoi generare il dataset.")
+        print('\nAll files matched. The dataset can be generated.')
 
-    print("\nArgomento pronto per genera_dataset_meccano.py:")
+    print('\nArgument for generate_meccano_dataset.py:')
     print(f"  --stl_dir {STL_DIR}")
 
 

@@ -101,8 +101,8 @@ class MainIntegrationTests(Fixture):
         self.assertEqual(len(controllers),1)
         self.assertEqual(controllers[0].generation,2)
         self.assertEqual(len(controllers[0].guide.slots),2)
-        self.assertIn('Piano destro occupato',output.getvalue())
-        self.assertIn('[VERIFICA]',output.getvalue())
+        self.assertIn('Right-hand area occupied',output.getvalue())
+        self.assertIn('[CHECK]',output.getvalue())
         self.assertEqual(len(models[0].kwargs),7)
         for options in models[0].kwargs:
             self.assertFalse(options['save'])

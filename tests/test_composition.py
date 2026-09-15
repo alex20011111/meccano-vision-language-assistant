@@ -122,7 +122,7 @@ class LayoutTests(Fixture):
     def test_generation_exception_is_atomic(self):
         g=self.guide(); self.assertTrue(self.make(g,["A045"]))
         previous=g.slots
-        with patch.object(g,"_build_figure",side_effect=ValueError("errore simulato")):
+        with patch.object(g,"_build_figure",side_effect=ValueError("simulated error")):
             self.assertFalse(self.make(g,["A045"]))
         self.assertIs(g.slots,previous)
         self.assertTrue(g.generated)
@@ -320,12 +320,12 @@ class ReportTests(Fixture):
         c=self.ready_controller();self.assertTrue(self.make(c.guide,["A003","A004"]))
         r=c.report()
         self.assertEqual(r["unlocated"],Counter({"A004":1}))
-        self.assertIn("Non localizzati",c.verification_text())
+        self.assertIn("Not located",c.verification_text())
 
     def test_toggle_reports_and_hides_without_microphone(self):
         c=self.ready_controller();self.assertTrue(self.make(c.guide,["A003"]))
         text=c.toggle_verification()
-        self.assertIn("sul piano sinistro",text)
+        self.assertIn("on the left-hand surface",text)
         self.assertTrue(c.verification_visible)
         self.assertIsNone(c.toggle_verification())
         self.assertFalse(c.verification_visible)
@@ -398,7 +398,7 @@ class UIAndAdapterTests(Fixture):
         runtime._lock=threading.RLock();runtime._wake=threading.Event()
         runtime._state="IDLE";runtime._closed=False;runtime._sequence=0
         runtime._pending=None;runtime._cancel_at=None;runtime._last_error=""
-        self.assertTrue(runtime.submit("say", "riepilogo"))
+        self.assertTrue(runtime.submit("say", "summary"))
         self.assertFalse(runtime.submit("query"))
 
     def test_runtime_has_no_session_logging_or_video_saving(self):

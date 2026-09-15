@@ -10,7 +10,7 @@ try:
     from shapely.ops import unary_union
     from PIL import Image, ImageDraw
 except ImportError:
-    print("Mancano librerie:  pip install trimesh numpy pillow shapely scipy")
+    print('Missing packages: pip install trimesh numpy pillow shapely scipy')
     sys.exit(1)
 
 
@@ -99,7 +99,7 @@ def main():
     ap.add_argument("--output", required=True)
     ap.add_argument("--ppmm", type=float, default=4.0)
     ap.add_argument("--no-auto", action="store_true",
-                    help="disattiva orientamento automatico")
+                    help='disable automatic orientation')
     args = ap.parse_args()
 
     os.makedirs(args.output, exist_ok=True)
@@ -107,7 +107,7 @@ def main():
 
     stl_files = sorted(f for f in os.listdir(args.input) if f.lower().endswith(".stl"))
     if not stl_files:
-        print(f"Nessun .stl in {args.input}")
+        print(f"No .stl files in {args.input}")
         return
 
     for fname in stl_files:
@@ -117,7 +117,7 @@ def main():
 
         mesh = trimesh.load(path, force="mesh")
         if mesh.is_empty:
-            print("  mesh vuota, salto.")
+            print('  Empty mesh; skipping.')
             continue
 
 
@@ -125,11 +125,11 @@ def main():
             try:
                 mesh = auto_flatten(mesh)
             except Exception as e:
-                print(f"  auto-orient fallito ({e}), uso orientamento originale.")
+                print(f"  Automatic orientation failed ({e}); using the original orientation.")
 
         poly = mesh_outline_polygon(mesh)
         if poly is None or poly.is_empty:
-            print("  impossibile estrarre sagoma, salto.")
+            print('  Cannot extract an outline; skipping.')
             continue
 
         mask, mm_per_px, size_mm = rasterize_polygon(poly, args.ppmm)
@@ -143,12 +143,12 @@ def main():
             "size_mm": [float(size_mm[0]), float(size_mm[1])],
             "img_wh": [img.width, img.height],
         }
-        print(f"  OK  {img.width}x{img.height}px  pezzo ~{size_mm[0]:.1f}x{size_mm[1]:.1f}mm  "
-              f"riempimento {frac:.0%}")
+        print(f"  OK  {img.width}x{img.height}px  part ~{size_mm[0]:.1f}x{size_mm[1]:.1f}mm  "
+              f"fill ratio {frac:.0%}")
 
     with open(os.path.join(args.output, "silhouettes_meta.json"), "w") as fp:
         json.dump(meta, fp, indent=2)
-    print(f"\nGenerate {len(meta['parts'])} silhouette in {args.output}")
+    print(f"\nGenerated {len(meta['parts'])} silhouette in {args.output}")
 
 
 if __name__ == "__main__":
