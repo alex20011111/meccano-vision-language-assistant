@@ -31,7 +31,7 @@ I separated perception from language interpretation. The language model uses the
 
 ## The workbench and kit
 
-The complete HTML report includes the RealSense camera photograph, the Meccano kit overview, translated workbench screenshots and the training figures. The RGB image feeds the detector, while depth and camera intrinsics support position estimates and silhouette scaling. The kit overview provides context for the component catalogue; the screwdriver labelled A090 belongs to the tools, not to the assembly-part inventory.
+The complete HTML report includes the RealSense camera photograph, the Meccano kit overview, workbench screenshots and training figures, with English captions and explanations. Some original screenshots and plots embedded in the repository retain Italian text within the image itself. The RGB image feeds the detector, while depth and camera intrinsics support position estimates and silhouette scaling. The kit overview provides context for the component catalogue; the screwdriver labelled A090 belongs to the tools, not to the assembly-part inventory.
 
 ## Source and startup
 
@@ -66,7 +66,7 @@ Experimental data collection is not part of this runtime.
 
 ## Documentation
 
-The [HTML report](report/index.html) contains the project narrative, camera and kit illustrations, bench screenshots, training plots and the interactive UML/code guide. The guide follows data from offline preparation through the frame loop and voice response to shutdown. Module contracts explain responsibilities, inputs, outputs and dependencies. The source reader uses the line numbers of the English source edition.
+The [HTML report](report/index.html) contains the project narrative, camera and kit illustrations, bench screenshots, training plots and the interactive UML/code guide. The guide follows data from offline preparation through the frame loop and voice response to shutdown. Module contracts explain responsibilities, inputs, outputs and dependencies. The source reader uses the line numbers of the English source edition. Diagram labels and their editable sequence sources are in English.
 
 [UML and execution path](docs/UML_AND_CODE.md) · [Source index](docs/SOURCE_INDEX.md) · [Design decisions](docs/DECISIONS.md) · [Viewing the HTML](WEB_REPORT.md)
 
@@ -78,9 +78,9 @@ The plots cover 50 epochs of the later training stage and synthetic validation. 
 
 ## Reproduction and compatibility
 
-Weights, the original photographs, synthetic dataset, STL models, silhouette assets and the bench configuration are separate resources. Illustrations do not replace those assets. The training plots and interface illustrations are presented with English labels while preserving the underlying numerical data. The report distinguishes documentation graphics from new experimental measurements.
+Weights, the original photographs, synthetic dataset, STL models, silhouette assets and the bench configuration are separate resources. Illustrations do not replace those assets. The report distinguishes documentation graphics from new experimental measurements. Translating captions or figure labels does not constitute a new evaluation.
 
-Core runtime module names, public runtime interfaces and part codes remain stable. Offline preparation utilities use English filenames and command-line labels in this edition. User-facing text, documentation and workflow names are English. Git history has not been rewritten.
+Core runtime module names, public runtime interfaces and part codes remain stable. Offline preparation utilities use English filenames. User-facing messages, documentation and workflow names are English; compatibility-sensitive identifiers, existing configuration keys and legacy command-line flags are retained where required by the existing assets. Git history has not been rewritten.
 
 Run the offline test suite with:
 
