@@ -1,61 +1,92 @@
-# Meccano Vision-Language Assistant
+# Meccano Vision–Language Assistant
 
-## Percezione RGB-D, tracking stabile e assistenza vocale al montaggio
+## RGB-D perception, stable tracking and voice-assisted assembly
 
-Durante il tirocinio ho sviluppato un assistente visivo e vocale per un banco di componenti Meccano. Sono partito dal riconoscimento dei pezzi con YOLO e ho lavorato sulla continuità dell’informazione: seguire un componente mentre viene spostato, mantenerne stabile la classe e usare la sua posizione per aiutare l’operatore.
+During my internship, I developed a visual and voice assistant for a Meccano workbench. I started with YOLO part recognition and focused on keeping the information consistent: following a component as it moves, stabilising its class and using its position to guide the operator.
 
-Il sistema combina una camera RGB-D RealSense, YOLO, ByteTrack, uno stabilizzatore delle classi, silhouette ricavate dai CAD e un’interfaccia vocale con un modello linguistico locale. Il risultato è un prototipo di assistenza all’operatore; non comprende l’attuazione di un robot, nodi ROS/ROS2 o un VLM che riceva direttamente le immagini.
+The system combines a RealSense RGB-D camera, YOLO, ByteTrack, a class stabiliser, CAD-derived silhouettes and a local language model. It is an operator-assistance prototype, not an autonomous robot controller. It does not include ROS/ROS2 nodes or a VLM that receives images directly.
 
-## Dal primo modello al fine-tuning
+**[Project report: HTML source](report/index.html)** · **[How to view the report](WEB_REPORT.md)** · **[UML and code](docs/UML_AND_CODE.md)** · **[Source index](docs/SOURCE_INDEX.md)**
 
-**Il primo `best.pt` è stato ottenuto con un addestramento basato su 150 fotografie, che ho etichettato manualmente su Roboflow.** Questa è la fase iniziale del riconoscimento dei componenti, precedente alla generazione del dataset sintetico. Roboflow è stato utilizzato per l’annotazione delle immagini: non identifico la piattaforma di annotazione con l’ambiente in cui è stato eseguito il training.
+## From the first model to fine-tuning
 
-Da quel modello sono partito per integrare il tracking e la stabilizzazione. In seguito ho utilizzato i CAD per generare scene sintetiche, preparato le annotazioni in formato YOLO e proseguito l’addestramento dai pesi esistenti. Distinguo quindi il **primo addestramento sulle 150 fotografie** dal **successivo fine-tuning sui dati sintetici**. I grafici della relazione riguardano la fase successiva e non misurano retroattivamente le prestazioni del primo modello.
+**I trained the first `best.pt` on 150 photographs that I labelled manually in Roboflow.** This was the initial part-recognition dataset, before synthetic generation from CAD. Roboflow was the annotation tool.
 
-[Storia del modello e preparazione dei dati](docs/ADDESTRAMENTO.md)
+I used that model to integrate tracking and class stabilisation. I then generated synthetic scenes from the CAD models, prepared YOLO annotations and continued training from the existing weights. The **first training run on 150 photographs** and the **later synthetic-data fine-tuning** are separate stages. The report's training plots describe the later stage, not the initial model's performance.
 
-## Come funziona
+[Model development and data preparation](docs/TRAINING.md)
+
+## How it works
 
 ```text
-Camera RGB-D → YOLO → ByteTrack → stabilizzazione della classe
+RGB-D camera → YOLO → ByteTrack → class stabilisation
                                       ↓
-                               stato della scena
-                                 ↙          ↘
-                      guida con sagome     assistente vocale
-                      e piazzamenti       testo → codice → posizione
+                                  scene state
+                                  ↙        ↘
+                        silhouette guide   voice assistant
+                        and placements     text → code → position
 ```
 
-Ho separato la percezione dall’interpretazione linguistica. Il modello linguistico interpreta la descrizione del pezzo usando il catalogo; la selezione delle istanze e la costruzione della risposta di posizione rimangono in Python. La voce lavora in un processo locale separato dal ciclo video.
+I separated perception from language interpretation. The language model uses the catalogue to resolve a part description; Python selects the observed instances and constructs the position response. Voice processing runs in a local process separate from the video loop.
 
-## Comandi del banco
+## The workbench and kit
 
-| Comando | Funzione |
+The complete HTML report includes the RealSense camera photograph, the Meccano kit overview, translated workbench screenshots and the training figures. The RGB image feeds the detector, while depth and camera intrinsics support position estimates and silhouette scaling. The kit overview provides context for the component catalogue; the screwdriver labelled A090 belongs to the tools, not to the assembly-part inventory.
+
+## Source and startup
+
+The repository contains **15 application/preparation modules and seven test files**. Explanations are kept in the documentation rather than decorative source comments.
+
+[Files, classes and functions](docs/SOURCE_INDEX.md) · [Main application](meccano_tracker.py) · [Offline tests](tests/)
+
+From the repository root, with weights, silhouettes and the tracker configuration available locally:
+
+```bash
+python -m pip install -r requirements.txt
+python meccano_tracker.py --model "path/to/best.pt" --silhouettes "path/to/silhouettes" --tracker "path/to/meccano_bytetrack.yaml" --no-voice
+```
+
+For voice interaction, install `requirements_voice.txt`, prepare the configured local model and omit `--no-voice`. This edition uses English speech recognition, an English catalogue and English TTS voice selection. CAD, rendering and dataset tools use separate dependencies; they are not required for simply viewing the report.
+
+## Workbench controls
+
+| Control | Action |
 |---|---|
-| **G / Spazio** | Avvia una composizione dai pezzi riconosciuti stabilmente a sinistra, con il piano destro libero. Non sostituisce una composizione già attiva. |
-| **N** | Richiede una nuova disposizione quando il controllo del piano destro lo consente. |
-| **V / I** | Mostra o nasconde il riepilogo e i richiami dei pezzi da prendere sul piano sinistro. |
-| **R** | Avvia una domanda vocale per codice o descrizione. |
-| **S** | Interrompe la richiesta vocale corrente senza fermare la camera o il tracking. |
-| **X** | Azzera la composizione, mantiene il tracking e controlla il rientro dei pezzi. |
+| **G / Space** | Start a composition from the stably recognised left-hand parts once the right-hand area is clear. Does not replace an active composition. |
+| **N** | Request a different layout when the right-area check permits it. |
+| **V / I** | Show or hide the summary and left-side cues for parts still needed. |
+| **R** | Ask for a part by code or description. |
+| **S** | Stop the current voice task without stopping the camera or tracking. |
+| **X** | Clear the composition, retain tracking and check whether parts need returning. |
+| **Q / Esc** | Close the application and release its resources. |
 
-Ho mantenuto il **controllo del piano destro attivo** nella versione di riferimento `meccano_fix_piano_destro`. La verifica dei singoli piazzamenti sulle sagome è un controllo distinto e continua durante il lavoro. Dopo X o al completamento, la presenza di pezzi nella zona di montaggio attiva l’avviso «RIPORTARE I PEZZI NEL PIANO DI PARTENZA».
+I kept the **right-hand occupancy check enabled**. It is separate from the continuous placement check against each target. Parts remaining in the construction region after X or completion trigger the written and spoken warning **RETURN THE PARTS TO THE STARTING AREA**.
 
-La raccolta dati sperimentale non fa parte del funzionamento corrente.
+Experimental data collection is not part of this runtime.
 
-## Documentazione
+## Documentation
 
-- [UML e codice: percorso sequenziale, classi, chiamate e sorgenti](docs/UML_E_CODICE.md)
-- [Scelte progettuali e versione di riferimento](docs/DECISIONS.md)
-- [Consultazione della relazione HTML](RELAZIONE_WEB.md)
+The [HTML report](report/index.html) contains the project narrative, camera and kit illustrations, bench screenshots, training plots and the interactive UML/code guide. The guide follows data from offline preparation through the frame loop and voice response to shutdown. Module contracts explain responsibilities, inputs, outputs and dependencies. The source reader uses the line numbers of the English source edition.
 
-Nella sezione UML seguo i dati dalla preparazione offline alla chiusura del programma. Per ogni modulo descrivo responsabilità, ingressi, uscite e collegamenti con gli altri componenti. I riferimenti di riga riguardano le copie dei sorgenti identificate nell’appendice tecnica; non presuppongono che tutti i file del banco siano presenti nel ramo principale.
+[UML and execution path](docs/UML_AND_CODE.md) · [Source index](docs/SOURCE_INDEX.md) · [Design decisions](docs/DECISIONS.md) · [Viewing the HTML](WEB_REPORT.md)
 
-## Classi e risultati
+## Classes and results
 
-**A090 e A823 sono errori che ho introdotto durante l’etichettatura: non corrispondono a pezzi reali.** A132 è il codice corretto del perno; A622 e A632 sono componenti distinti. Hand è una classe ausiliaria, non un pezzo della composizione. Mantengo distinta la tassonomia fisica dall’ordine degli indici dei checkpoint, che non va modificato senza aggiornare coerentemente le annotazioni.
+**A090 and A823 were erroneous labels in the assembly dataset; neither is a component class in the working inventory.** A132 is the working pin code. A622 and A632 are distinct parts. Hand is an auxiliary class, not a composition component. Physical part identity and checkpoint index order remain separate: removing names from a list without migrating annotations would change subsequent class meanings.
 
-I grafici riportano 50 epoche del training successivo e una validazione sintetica. Li uso per discutere la convergenza del detector, non come misura del tracking, della risposta vocale o dell’efficacia dell’interazione sul banco. Il grafico AP per classe presenta incongruenze rispetto alla tassonomia e alle matrici di confusione; prima di utilizzarlo per un confronto fra componenti devo verificarne la corrispondenza fra nomi e valori.
+The plots cover 50 epochs of the later training stage and synthetic validation. They describe detector convergence, not tracking continuity, voice quality or operator benefit. The per-class AP chart has inconsistencies with the taxonomy and confusion matrices. Its name-to-value alignment needs checking before using it to rank parts.
 
-## Risorse per la riproduzione
+## Reproduction and compatibility
 
-Pesi, fotografie del dataset iniziale, dataset sintetico, STL, silhouette e configurazione del banco non sono inclusi nel repository. Le immagini della relazione illustrano il dispositivo e il funzionamento del prototipo, ma non sostituiscono questi asset. Mantengo separati i risultati di addestramento, le verifiche software e le prove con camera e audio reali.
+Weights, the original photographs, synthetic dataset, STL models, silhouette assets and the bench configuration are separate resources. Illustrations do not replace those assets. The training plots and interface illustrations are presented with English labels while preserving the underlying numerical data. The report distinguishes documentation graphics from new experimental measurements.
+
+Core runtime module names, public runtime interfaces and part codes remain stable. Offline preparation utilities use English filenames and command-line labels in this edition. User-facing text, documentation and workflow names are English. Git history has not been rewritten.
+
+Run the offline test suite with:
+
+```bash
+python -m pip install -r requirements_dev.txt
+python -m unittest discover -s tests -v
+```
+
+[Verification scope and results](docs/VERIFICATION.md)
